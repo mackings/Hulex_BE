@@ -1,0 +1,7 @@
+./node_modules
+private.key
+privatecert.pem
+publiccert.cer
+revolut.csr
+.vercel
+node_modules
