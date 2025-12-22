@@ -26,16 +26,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  verificationToken: {
+  verificationOTP: {
     type: String
   },
-  verificationTokenExpiry: {
+  verificationOTPExpiry: {
     type: Date
   },
-  resetToken: {
+  resetOTP: {
     type: String
   },
-  resetTokenExpiry: {
+  resetOTPExpiry: {
     type: Date
   }
 }, {

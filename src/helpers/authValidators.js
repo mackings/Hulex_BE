@@ -52,14 +52,30 @@ exports.validateLogin = [
 
 // Reset password validation
 exports.validateResetPassword = [
-  body('token')
+  body('otp')
     .notEmpty()
-    .withMessage('Reset token is required'),
+    .withMessage('Reset code is required')
+    .isLength({ min: 5, max: 5 })
+    .withMessage('Reset code must be 5 digits')
+    .isNumeric()
+    .withMessage('Reset code must be numeric'),
   body('newPassword')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  this.handleValidationErrors
+];
+
+// Verify email validation
+exports.validateVerifyEmail = [
+  body('otp')
+    .notEmpty()
+    .withMessage('Verification code is required')
+    .isLength({ min: 5, max: 5 })
+    .withMessage('Verification code must be 5 digits')
+    .isNumeric()
+    .withMessage('Verification code must be numeric'),
   this.handleValidationErrors
 ];
 

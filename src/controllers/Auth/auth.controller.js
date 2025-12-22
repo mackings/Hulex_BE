@@ -6,7 +6,6 @@ const User = require('../../models/userModel');
 
 
 
-// Create Account
 exports.CreateAccount = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
@@ -23,9 +22,9 @@ exports.CreateAccount = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    // Generate 5-digit OTP
+    const verificationOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    const verificationOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Create user
     const user = await User.create({
@@ -33,17 +32,17 @@ exports.CreateAccount = async (req, res) => {
       password: hashedPassword,
       firstName,
       lastName,
-      verificationToken,
-      verificationTokenExpiry,
+      verificationOTP,
+      verificationOTPExpiry,
       isVerified: false
     });
 
     // Send verification email
-    await sendVerificationEmail(email, verificationToken);
+    await sendVerificationEmail(email, verificationOTP);
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully. Please check your email for verification code.',
       userId: user._id
     });
   } catch (err) {
@@ -55,29 +54,26 @@ exports.CreateAccount = async (req, res) => {
   }
 };
 
-
-
-
 // Verify Email
 exports.VerifyEmail = async (req, res) => {
   try {
-    const { token } = req.query;
+    const { otp } = req.body;
 
     const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpiry: { $gt: Date.now() }
+      verificationOTP: otp,
+      verificationOTPExpiry: { $gt: Date.now() }
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid or expired verification token'
+        error: 'Invalid or expired verification code'
       });
     }
 
     user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpiry = undefined;
+    user.verificationOTP = undefined;
+    user.verificationOTPExpiry = undefined;
     await user.save();
 
     res.json({
@@ -161,24 +157,24 @@ exports.RequestPasswordReset = async (req, res) => {
       // Don't reveal if user exists
       return res.json({
         success: true,
-        message: 'If an account exists with this email, you will receive a password reset link.'
+        message: 'If an account exists with this email, you will receive a password reset code.'
       });
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+    // Generate 5-digit OTP
+    const resetOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    const resetOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    user.resetToken = resetToken;
-    user.resetTokenExpiry = resetTokenExpiry;
+    user.resetOTP = resetOTP;
+    user.resetOTPExpiry = resetOTPExpiry;
     await user.save();
 
     // Send reset email
-    await sendPasswordResetEmail(email, resetToken);
+    await sendPasswordResetEmail(email, resetOTP);
 
     res.json({
       success: true,
-      message: 'If an account exists with this email, you will receive a password reset link.'
+      message: 'If an account exists with this email, you will receive a password reset code.'
     });
   } catch (err) {
     console.error(err);
@@ -192,17 +188,17 @@ exports.RequestPasswordReset = async (req, res) => {
 // Reset Password
 exports.ResetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { otp, newPassword } = req.body;
 
     const user = await User.findOne({
-      resetToken: token,
-      resetTokenExpiry: { $gt: Date.now() }
+      resetOTP: otp,
+      resetOTPExpiry: { $gt: Date.now() }
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid or expired reset token'
+        error: 'Invalid or expired reset code'
       });
     }
 
@@ -210,8 +206,8 @@ exports.ResetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     user.password = hashedPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
+    user.resetOTP = undefined;
+    user.resetOTPExpiry = undefined;
     await user.save();
 
     res.json({
@@ -247,20 +243,20 @@ exports.ResendVerification = async (req, res) => {
       });
     }
 
-    // Generate new verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    // Generate new 5-digit OTP
+    const verificationOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    const verificationOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    user.verificationToken = verificationToken;
-    user.verificationTokenExpiry = verificationTokenExpiry;
+    user.verificationOTP = verificationOTP;
+    user.verificationOTPExpiry = verificationOTPExpiry;
     await user.save();
 
     // Send verification email
-    await sendVerificationEmail(email, verificationToken);
+    await sendVerificationEmail(email, verificationOTP);
 
     res.json({
       success: true,
-      message: 'Verification email sent successfully'
+      message: 'Verification code sent successfully'
     });
   } catch (err) {
     console.error(err);

@@ -11,7 +11,7 @@ const { authMiddleware } = require('../helpers/authService');
 
 // Public routes
 router.post('/register', validateRegister, CreateAccount);
-router.get('/verify-email', VerifyEmail);
+router.post('/verify-email', VerifyEmail);
 router.post('/login', validateLogin, Login);
 router.post('/request-password-reset', validateEmail, RequestPasswordReset);
 router.post('/reset-password', validateResetPassword, ResetPassword);
