@@ -89,10 +89,11 @@ exports.VerifyEmail = async (req, res) => {
   }
 };
 
-// Login
+// Login with account lockout protection
 exports.Login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const clientIp = req.clientIp || req.ip;
 
     // Find user
     const user = await User.findOne({ email });
@@ -101,6 +102,22 @@ exports.Login = async (req, res) => {
         success: false,
         error: 'Invalid credentials'
       });
+    }
+
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      const lockTimeRemaining = Math.ceil((user.lockUntil - Date.now()) / 1000 / 60);
+      return res.status(423).json({
+        success: false,
+        error: `Account is locked due to multiple failed login attempts. Please try again in ${lockTimeRemaining} minutes.`
+      });
+    }
+
+    // Reset lock if lock period has expired
+    if (user.lockUntil && user.lockUntil <= Date.now()) {
+      user.loginAttempts = 0;
+      user.lockUntil = undefined;
+      await user.save();
     }
 
     // Check if verified
@@ -114,18 +131,69 @@ exports.Login = async (req, res) => {
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      // Increment failed login attempts
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+
+      // Lock account after 5 failed attempts for 30 minutes
+      const MAX_LOGIN_ATTEMPTS = 5;
+      const LOCK_TIME = 30 * 60 * 1000; // 30 minutes
+
+      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = Date.now() + LOCK_TIME;
+        await user.save();
+
+        console.warn({
+          timestamp: new Date().toISOString(),
+          type: 'ACCOUNT_LOCKED',
+          email: user.email,
+          ip: clientIp,
+          attempts: user.loginAttempts
+        });
+
+        return res.status(423).json({
+          success: false,
+          error: 'Account locked due to multiple failed login attempts. Please try again in 30 minutes or reset your password.'
+        });
+      }
+
+      await user.save();
+
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid credentials',
+        attemptsRemaining: MAX_LOGIN_ATTEMPTS - user.loginAttempts
       });
     }
 
-    // Generate JWT
+    // Successful login - reset attempts and update login info
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    user.lastLoginIP = clientIp;
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Generate JWT with additional security
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      {
+        userId: user._id,
+        email: user.email,
+        iat: Math.floor(Date.now() / 1000)
+      },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      {
+        expiresIn: process.env.JWT_EXPIRY || '7d',
+        issuer: 'hulex-api',
+        audience: 'hulex-client'
+      }
     );
+
+    // Log successful login
+    console.log({
+      timestamp: new Date().toISOString(),
+      type: 'LOGIN_SUCCESS',
+      email: user.email,
+      ip: clientIp
+    });
 
     res.json({
       success: true,
@@ -135,14 +203,15 @@ exports.Login = async (req, res) => {
         id: user._id,
         email: user.email,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        lastLogin: user.lastLoginAt
       }
     });
   } catch (err) {
-    console.error(err);
-    res.status(400).json({
+    console.error('Login error:', err);
+    res.status(500).json({
       success: false,
-      error: err.message
+      error: 'An error occurred during login'
     });
   }
 };

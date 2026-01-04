@@ -37,9 +37,27 @@ const userSchema = new mongoose.Schema({
   },
   resetOTPExpiry: {
     type: Date
+  },
+  loginAttempts: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: {
+    type: Date
+  },
+  lastLoginIP: {
+    type: String
+  },
+  lastLoginAt: {
+    type: Date
   }
 }, {
   timestamps: true
+});
+
+// Virtual for checking if account is locked
+userSchema.virtual('isLocked').get(function() {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
 module.exports = mongoose.model('User', userSchema);
