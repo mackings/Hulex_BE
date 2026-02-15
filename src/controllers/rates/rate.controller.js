@@ -17,7 +17,32 @@ const {
   countriesData,
   getCountryIso2ByCurrency
 } = require('../../helpers/currencyHelper');
+const { recordRateHistory } = require('../../helpers/historyService');
 
+// Map SendWave response into the same provider-shaped object the comparison API returns
+function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency) {
+  const rate = parseFloat(data?.effectiveExchangeRate || data?.baseExchangeRate || 0);
+  const fee = parseFloat(data?.effectiveFeeAmount || data?.baseFeeAmount || 0);
+  const receivedAmount = parseFloat(data?.receiveAmount || 0);
+
+  return {
+    id: 'sendwave',
+    name: 'Sendwave',
+    alias: 'sendwave',
+    type: 'remittance',
+    logo: null,
+    rate: rate || 0,
+    fee: fee || 0,
+    receivedAmount: receivedAmount || 0,
+    sendAmount: sendAmount,
+    markup: null,
+    deliveryTime: null,
+    isMidMarketRate: false,
+    sourceCountry: getCountryIso2ByCurrency(sourceCurrency),
+    targetCountry: getCountryIso2ByCurrency(targetCurrency),
+    dateCollected: new Date().toISOString()
+  };
+}
 
 
 
@@ -91,6 +116,32 @@ exports.GetRatesComparison = async (req, res) => {
     // Format provider data
     let providers = formatProviderData(comparisonData.providers);
 
+    // Also fetch SendWave rates and normalize to provider shape
+    let sendWaveProvider = null;
+    try {
+      const sendCountryIso2 = getCountryIso2ByCurrency(sourceCurrency);
+      const receiveCountryIso2 = getCountryIso2ByCurrency(targetCurrency);
+
+      if (!sendCountryIso2 || !receiveCountryIso2) {
+        console.warn(`SendWave lookup skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`);
+      } else {
+        const sendWaveData = await getSendWaveRates(
+          sourceCurrency,
+          targetCurrency,
+          sendCountryIso2,
+          receiveCountryIso2,
+          sendAmount
+        );
+        sendWaveProvider = formatSendWaveProvider(sendWaveData, sendAmount, sourceCurrency, targetCurrency);
+      }
+    } catch (sendWaveErr) {
+      console.warn('SendWave fetch failed:', sendWaveErr.message);
+    }
+
+    if (sendWaveProvider) {
+      providers.push(sendWaveProvider);
+    }
+
     // Filter by provider type if specified
     if (providerTypes) {
       const types = Array.isArray(providerTypes) ? providerTypes : [providerTypes];
@@ -109,6 +160,20 @@ exports.GetRatesComparison = async (req, res) => {
       totalProviders: providers.length,
       savingsWithBest: providers[providers.length - 1].receivedAmount - providers[0].receivedAmount
     };
+
+    // Store history for authenticated users
+    if (req.user && req.user._id) {
+      recordRateHistory({
+        userId: req.user._id,
+        fromCurrency: sourceCurrency,
+        toCurrency: targetCurrency,
+        amount: sendAmount,
+        stats,
+        providers
+      }).catch(err => {
+        console.warn('Failed to record rate history:', err.message);
+      });
+    }
 
     res.json({
       success: true,
@@ -521,5 +586,3 @@ exports.GetPaysendRates = async (req, res) => {
         });
     }
 };
-
-

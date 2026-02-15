@@ -22,6 +22,21 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  phone: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  country: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  address: {
+    type: String,
+    required: true,
+    trim: true
+  },
   isVerified: {
     type: Boolean,
     default: false
@@ -50,6 +65,16 @@ const userSchema = new mongoose.Schema({
   },
   lastLoginAt: {
     type: Date
+  },
+  pushTokens: {
+    type: [
+      {
+        token: { type: String, required: true },
+        platform: { type: String },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
+    default: []
   }
 }, {
   timestamps: true

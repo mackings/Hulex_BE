@@ -14,9 +14,11 @@
 2. [Rate Comparison APIs](#rate-comparison-apis)
 3. [Trustpilot Reviews API](#trustpilot-reviews-api)
 4. [Currency & Country Data](#currency--country-data)
-5. [Error Handling](#error-handling)
-6. [Rate Limiting](#rate-limiting)
-7. [Flutter Integration Guide](#flutter-integration-guide)
+5. [History APIs](#history-apis)
+6. [Alerts APIs](#alerts-apis)
+7. [Error Handling](#error-handling)
+8. [Rate Limiting](#rate-limiting)
+9. [Flutter Integration Guide](#flutter-integration-guide)
 
 ---
 
@@ -34,7 +36,10 @@
   "email": "user@example.com",
   "password": "SecurePass123",
   "firstName": "John",
-  "lastName": "Doe"
+  "lastName": "Doe",
+  "phone": "+1 555 123 4567",
+  "country": "United States",
+  "address": "123 Main St, Springfield"
 }
 ```
 
@@ -737,6 +742,248 @@ GET /currencies/EUR/countries
 ```
 
 **Performance:** ⚡ Instant (< 100ms)
+
+---
+
+## History APIs
+
+> History is automatically recorded when an authenticated user calls `GET /rates/compare`.
+
+### 1. Get Rate History
+
+**Endpoint:** `GET /history`
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `page` (optional, default `1`)
+- `limit` (optional, default `20`, max `100`)
+- `fromCurrency` (optional)
+- `toCurrency` (optional)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "page": 1,
+  "limit": 20,
+  "total": 3,
+  "items": [
+    {
+      "_id": "65b123...",
+      "fromCurrency": "USD",
+      "toCurrency": "NGN",
+      "amount": 1,
+      "stats": {
+        "bestRate": {},
+        "worstRate": {},
+        "averageReceivedAmount": 1548.12,
+        "averageRate": 1548.12,
+        "totalProviders": 5,
+        "savingsWithBest": 120.5
+      },
+      "providers": [],
+      "checkedAt": "2026-01-28T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Get History Item
+
+**Endpoint:** `GET /history/:id`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "item": {
+    "_id": "65b123...",
+    "fromCurrency": "USD",
+    "toCurrency": "NGN",
+    "amount": 1,
+    "checkedAt": "2026-01-28T12:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 3. Delete History Item
+
+**Endpoint:** `DELETE /history/:id`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "History item deleted"
+}
+```
+
+---
+
+### 4. Clear History
+
+**Endpoint:** `DELETE /history`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "History cleared"
+}
+```
+
+---
+
+## Alerts APIs
+
+> Alerts are checked by a cron job (default: `0 9,13,20 * * *` in `UTC`).  
+> Configure with `ALERT_CRON` and `ALERT_CRON_TZ`.
+
+### 1. Create Alert
+
+**Endpoint:** `POST /alerts`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "fromCurrency": "USD",
+  "toCurrency": "NGN",
+  "amount": 1,
+  "targetAmount": 2000,
+  "condition": "gte",
+  "providerType": "remittance"
+}
+```
+
+**Success Response:** `201 Created`
+```json
+{
+  "success": true,
+  "alert": {
+    "_id": "65b456...",
+    "fromCurrency": "USD",
+    "toCurrency": "NGN",
+    "amount": 1,
+    "targetAmount": 2000,
+    "condition": "gte",
+    "providerType": "remittance",
+    "active": true
+  }
+}
+```
+
+---
+
+### 2. List Alerts
+
+**Endpoint:** `GET /alerts`
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `page` (optional)
+- `limit` (optional)
+- `active` (optional, `true|false`)
+
+---
+
+### 3. Get Alert
+
+**Endpoint:** `GET /alerts/:id`
+
+**Authentication:** Required
+
+---
+
+### 4. Update Alert
+
+**Endpoint:** `PATCH /alerts/:id`
+
+**Authentication:** Required
+
+**Request Body (any):**
+```json
+{
+  "targetAmount": 1500,
+  "condition": "gte",
+  "active": true
+}
+```
+
+---
+
+### 5. Delete Alert
+
+**Endpoint:** `DELETE /alerts/:id`
+
+**Authentication:** Required
+
+---
+
+### 6. Run Alert Check (Manual)
+
+**Endpoint:** `POST /alerts/run-check`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "alertId": "65b456...",
+      "triggered": true,
+      "notificationId": "65b789..."
+    }
+  ]
+}
+```
+
+---
+
+### 7. List Alert Notifications
+
+**Endpoint:** `GET /alerts/notifications`
+
+**Authentication:** Required
+
+---
+
+### 8. Register Push Token
+
+**Endpoint:** `POST /alerts/device-token`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "token": "DEVICE_PUSH_TOKEN",
+  "platform": "ios"
+}
+```
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Push token registered"
+}
+```
 
 ---
 

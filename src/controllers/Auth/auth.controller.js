@@ -8,7 +8,7 @@ const User = require('../../models/userModel');
 
 exports.CreateAccount = async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, phone, country, address } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -32,6 +32,9 @@ exports.CreateAccount = async (req, res) => {
       password: hashedPassword,
       firstName,
       lastName,
+      phone,
+      country,
+      address,
       verificationOTP,
       verificationOTPExpiry,
       isVerified: false
@@ -204,6 +207,9 @@ exports.Login = async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
+        country: user.country,
+        address: user.address,
         lastLogin: user.lastLoginAt
       }
     });

@@ -35,6 +35,24 @@ exports.validateRegister = [
     .withMessage('Last name is required')
     .isLength({ min: 2 })
     .withMessage('Last name must be at least 2 characters long'),
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Phone number is required')
+    .isLength({ min: 7 })
+    .withMessage('Phone number must be at least 7 characters long'),
+  body('country')
+    .trim()
+    .notEmpty()
+    .withMessage('Country is required')
+    .isLength({ min: 2 })
+    .withMessage('Country must be at least 2 characters long'),
+  body('address')
+    .trim()
+    .notEmpty()
+    .withMessage('Address is required')
+    .isLength({ min: 5 })
+    .withMessage('Address must be at least 5 characters long'),
   this.handleValidationErrors
 ];
 

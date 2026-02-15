@@ -111,3 +111,39 @@ exports.authMiddleware = async (req, res, next) => {
     });
   }
 };
+
+// Optional auth: attach user if token is valid, otherwise continue without failing
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      issuer: 'hulex-api',
+      audience: 'hulex-client',
+      algorithms: ['HS256'],
+      clockTolerance: 30
+    });
+
+    const tokenAge = Date.now() / 1000 - decoded.iat;
+    const maxTokenAge = 7 * 24 * 60 * 60;
+    if (tokenAge > maxTokenAge) {
+      return next();
+    }
+
+    const user = await User.findById(decoded.userId).select('-password -verificationOTP -resetOTP');
+    if (!user || (user.lockUntil && user.lockUntil > Date.now()) || !user.isVerified) {
+      return next();
+    }
+
+    req.user = user;
+    req.token = token;
+    req.tokenPayload = decoded;
+    return next();
+  } catch (err) {
+    return next();
+  }
+};

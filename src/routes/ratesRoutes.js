@@ -1,12 +1,13 @@
 const express = require("express");
 const { Getrates, GetPaysendRates, GetRevolutRates, GetWiseRates, GetRatesComparison, GetProviderRate, GetSupportedCurrencies, GetAllCountries, GetCountryByCode, GetCountriesByCurrency, GetSendWaveRates } = require("../controllers/rates/rate.controller");
+const { optionalAuth } = require('../helpers/authService');
 
 const router = express.Router();
 
 
 
 
-router.get('/rates/compare', GetRatesComparison);
+router.get('/rates/compare', optionalAuth, GetRatesComparison);
 router.get('/rates/provider', GetProviderRate);
 
 router.get('/currencies', GetSupportedCurrencies);

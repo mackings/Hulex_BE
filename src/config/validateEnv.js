@@ -23,7 +23,9 @@ const optionalEnvVars = [
   'WISE_API_BASE',
   'REVOLUT_CLIENT_ID',
   'REVOLUT_ENV',
-  'REVOLUT_REDIRECT_DOMAIN'
+  'REVOLUT_REDIRECT_DOMAIN',
+  'ALERT_CRON',
+  'ALERT_CRON_TZ'
 ];
 
 function validateEnvironment() {

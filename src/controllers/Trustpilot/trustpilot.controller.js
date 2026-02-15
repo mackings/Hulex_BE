@@ -1,5 +1,31 @@
 const { getCompanyReviews, getCompanyInfo, formatReviewData } = require('../../helpers/trustpilotApi');
 
+// Simple in-memory cache for reviews to reduce duplicate fetches
+const REVIEWS_CACHE = new Map();
+const REVIEW_CACHE_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+
+function buildCacheKey({ company_domain, locale, date_posted, page }) {
+  return `${company_domain}|${locale}|${date_posted}|${page}`;
+}
+
+function getCachedReviews(key) {
+  const cached = REVIEWS_CACHE.get(key);
+  if (!cached) return null;
+
+  if (cached.expiresAt < Date.now()) {
+    REVIEWS_CACHE.delete(key);
+    return null;
+  }
+  return cached.data;
+}
+
+function setCachedReviews(key, data) {
+  REVIEWS_CACHE.set(key, {
+    data,
+    expiresAt: Date.now() + REVIEW_CACHE_TTL_MS
+  });
+}
+
 /**
  * Get company reviews from Trustpilot
  * @route GET /trustpilot/reviews
@@ -37,13 +63,26 @@ exports.getReviews = async (req, res) => {
       });
     }
 
-    // Fetch reviews from Trustpilot API
-    const result = await getCompanyReviews({
+    const queryParams = {
       company_domain,
       locale: locale || 'en-US',
       date_posted: date_posted || 'any',
       page: page ? parseInt(page) : 1
-    });
+    };
+
+    // Serve from cache if available and fresh
+    const cacheKey = buildCacheKey(queryParams);
+    const cached = getCachedReviews(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        ...cached,
+        cached: true
+      });
+    }
+
+    // Fetch reviews from Trustpilot API
+    const result = await getCompanyReviews(queryParams);
 
     if (!result.success) {
       return res.status(result.status || 500).json({
@@ -54,10 +93,12 @@ exports.getReviews = async (req, res) => {
 
     // Format and return the data
     const formattedData = formatReviewData(result.data);
+    setCachedReviews(cacheKey, formattedData);
 
     res.json({
       success: true,
-      ...formattedData
+      ...formattedData,
+      cached: false
     });
 
   } catch (error) {

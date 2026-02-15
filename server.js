@@ -15,6 +15,9 @@ const PORT = process.env.PORT || 1000;
 const Rateroutes = require("./src/routes/ratesRoutes");
 const Authroutes = require("./src/routes/authRoutes");
 const Trustpilotroutes = require("./src/routes/trustpilotRoutes");
+const Historyroutes = require("./src/routes/historyRoutes");
+const Alrtroutes = require("./src/routes/alertRoutes");
+const { startAlertCron, stopAlertCron } = require("./src/cron/alertCron");
 
 // Import security middleware
 const {
@@ -97,7 +100,10 @@ mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(() => console.log('✓ MongoDB connected successfully'))
+.then(() => {
+  console.log('✓ MongoDB connected successfully');
+  startAlertCron();
+})
 .catch(err => {
   console.error('✗ MongoDB connection error:', err);
   process.exit(1);
@@ -119,6 +125,8 @@ mongoose.connection.on('disconnected', () => {
 app.use("/", Rateroutes);
 app.use("/", Authroutes);
 app.use("/", Trustpilotroutes);
+app.use("/", Historyroutes);
+app.use("/", Alrtroutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -191,6 +199,7 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM received, closing server gracefully...');
   server.close(() => {
     console.log('Server closed');
+    stopAlertCron();
     mongoose.connection.close(false, () => {
       console.log('MongoDB connection closed');
       process.exit(0);
