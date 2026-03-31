@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { validateRegister, validateLogin, validateEmail, validateResetPassword } = require('../helpers/authValidators');
+const { validateRegister, validateLogin, validateEmail, validateResetPassword, validateVerifyEmail } = require('../helpers/authValidators');
 const { CreateAccount, Login, RequestPasswordReset, ResetPassword, ResendVerification, VerifyEmail } = require('../controllers/Auth/auth.controller');
 const { authMiddleware } = require('../helpers/authService');
 const { authLimiter, otpLimiter } = require('../middleware/securityMiddleware');
@@ -14,7 +14,7 @@ const { authLimiter, otpLimiter } = require('../middleware/securityMiddleware');
 router.post('/register', authLimiter, validateRegister, CreateAccount);
 
 // Email verification - OTP rate limiting
-router.post('/verify-email', otpLimiter, VerifyEmail);
+router.post('/verify-email', otpLimiter, validateVerifyEmail, VerifyEmail);
 
 // Login - Strict rate limiting (most critical endpoint)
 router.post('/login', authLimiter, validateLogin, Login);

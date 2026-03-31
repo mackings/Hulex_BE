@@ -21,38 +21,40 @@ exports.validateRegister = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .isLength({ max: 128 })
+    .withMessage('Password must be 128 characters or fewer')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/)
+    .withMessage('Password must contain uppercase, lowercase, number, and special character'),
   body('firstName')
     .trim()
     .notEmpty()
     .withMessage('First name is required')
-    .isLength({ min: 2 })
-    .withMessage('First name must be at least 2 characters long'),
+    .isLength({ min: 2, max: 50 })
+    .withMessage('First name must be between 2 and 50 characters long'),
   body('lastName')
     .trim()
     .notEmpty()
     .withMessage('Last name is required')
-    .isLength({ min: 2 })
-    .withMessage('Last name must be at least 2 characters long'),
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Last name must be between 2 and 50 characters long'),
   body('phone')
     .trim()
     .notEmpty()
     .withMessage('Phone number is required')
-    .isLength({ min: 7 })
-    .withMessage('Phone number must be at least 7 characters long'),
+    .matches(/^[0-9+\-\s()]{7,32}$/)
+    .withMessage('Phone number format is invalid'),
   body('country')
     .trim()
     .notEmpty()
     .withMessage('Country is required')
-    .isLength({ min: 2 })
-    .withMessage('Country must be at least 2 characters long'),
+    .isLength({ min: 2, max: 80 })
+    .withMessage('Country must be between 2 and 80 characters long'),
   body('address')
     .trim()
     .notEmpty()
     .withMessage('Address is required')
-    .isLength({ min: 5 })
-    .withMessage('Address must be at least 5 characters long'),
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Address must be between 5 and 200 characters long'),
   this.handleValidationErrors
 ];
 
@@ -64,7 +66,9 @@ exports.validateLogin = [
     .normalizeEmail(),
   body('password')
     .notEmpty()
-    .withMessage('Password is required'),
+    .withMessage('Password is required')
+    .isLength({ max: 128 })
+    .withMessage('Password must be 128 characters or fewer'),
   this.handleValidationErrors
 ];
 
@@ -80,8 +84,10 @@ exports.validateResetPassword = [
   body('newPassword')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .isLength({ max: 128 })
+    .withMessage('Password must be 128 characters or fewer')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/)
+    .withMessage('Password must contain uppercase, lowercase, number, and special character'),
   this.handleValidationErrors
 ];
 

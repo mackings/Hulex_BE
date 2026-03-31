@@ -24,7 +24,7 @@ function ProviderBadge({ provider }) {
         {provider.logo ? (
           <img
             alt={`${provider.name} logo`}
-            className="compare-intro-provider-logo"
+            className={`compare-intro-provider-logo compare-intro-provider-logo-${provider.alias}`}
             loading="lazy"
             referrerPolicy="no-referrer"
             src={provider.logo}

@@ -1,36 +1,27 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getMe } from "@/lib/api";
-
-const TOKEN_KEY = "hulex-flow-token";
+import { deleteSession, getMe } from "@/lib/api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem(TOKEN_KEY);
-    if (!storedToken) {
-      setIsHydrated(true);
-      return;
-    }
-
-    setToken(storedToken);
     setIsLoadingUser(true);
 
-    getMe(storedToken)
+    getMe()
       .then((data) => {
         setUser(data.user);
+        setIsAuthenticated(true);
       })
       .catch(() => {
-        window.localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
         setUser(null);
+        setIsAuthenticated(false);
       })
       .finally(() => {
         setIsLoadingUser(false);
@@ -40,39 +31,39 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      token,
       user,
       isHydrated,
       isLoadingUser,
-      isAuthenticated: Boolean(token),
-      setSession(nextToken, nextUser) {
-        window.localStorage.setItem(TOKEN_KEY, nextToken);
-        setToken(nextToken);
+      isAuthenticated,
+      setSession(nextUser) {
         setUser(nextUser ?? null);
+        setIsAuthenticated(true);
       },
-      async refreshUser(activeToken = token) {
-        if (!activeToken) {
-          setUser(null);
-          return null;
-        }
-
+      async refreshUser() {
         setIsLoadingUser(true);
 
         try {
-          const data = await getMe(activeToken);
+          const data = await getMe();
           setUser(data.user);
+          setIsAuthenticated(true);
           return data.user;
+        } catch (error) {
+          setUser(null);
+          setIsAuthenticated(false);
+          return null;
         } finally {
           setIsLoadingUser(false);
         }
       },
-      clearSession() {
-        window.localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
+      async clearSession() {
+        try {
+          await deleteSession();
+        } catch {}
         setUser(null);
+        setIsAuthenticated(false);
       }
     }),
-    [isHydrated, isLoadingUser, token, user]
+    [isAuthenticated, isHydrated, isLoadingUser, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

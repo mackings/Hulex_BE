@@ -4,16 +4,25 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import {
+  BROWSER_NOTIFICATIONS_EVENT,
+  browserNotificationsSupported,
+  disableBrowserNotifications,
+  enableBrowserNotifications,
+  getBrowserNotificationsMode,
+  getBrowserNotificationPermission,
+  getBrowserNotificationsEnabled
+} from "@/lib/browser-notifications";
+import {
   createAlert,
   deleteAlert,
   getAlerts,
   getHistory,
+  getProviderReviewBundle,
   getNotifications,
-  getTrustpilotReviews,
-  getTrustpilotStats,
   updateAlert
 } from "@/lib/api";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+import { providerDirectory } from "@/lib/providers";
 
 const initialAlertForm = {
   fromCurrency: "USD",
@@ -25,22 +34,47 @@ const initialAlertForm = {
 };
 
 export function DashboardShell() {
-  const { isAuthenticated, isHydrated, token, user, refreshUser } = useAuth();
+  const { isAuthenticated, isHydrated, user, refreshUser } = useAuth();
   const [history, setHistory] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [trustpilotDomain, setTrustpilotDomain] = useState("sendwave.com");
+  const [reviewProvider, setReviewProvider] = useState("sendwave");
   const [alertForm, setAlertForm] = useState(initialAlertForm);
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [trustpilotLoading, setTrustpilotLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [browserAlertsEnabled, setBrowserAlertsEnabled] = useState(false);
+  const [browserAlertsMode, setBrowserAlertsMode] = useState("");
+  const [browserAlertPermission, setBrowserAlertPermission] = useState("default");
+
+  useEffect(() => {
+    if (!browserNotificationsSupported()) {
+      setBrowserAlertPermission("unsupported");
+      return undefined;
+    }
+
+    const syncBrowserAlertState = () => {
+      setBrowserAlertsEnabled(getBrowserNotificationsEnabled());
+      setBrowserAlertsMode(getBrowserNotificationsMode());
+      setBrowserAlertPermission(getBrowserNotificationPermission());
+    };
+
+    syncBrowserAlertState();
+    window.addEventListener(BROWSER_NOTIFICATIONS_EVENT, syncBrowserAlertState);
+    document.addEventListener("visibilitychange", syncBrowserAlertState);
+
+    return () => {
+      window.removeEventListener(BROWSER_NOTIFICATIONS_EVENT, syncBrowserAlertState);
+      document.removeEventListener("visibilitychange", syncBrowserAlertState);
+    };
+  }, []);
 
   const loadDashboard = async () => {
-    if (!token) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -49,15 +83,15 @@ export function DashboardShell() {
 
     try {
       const [historyData, alertsData, notificationsData] = await Promise.all([
-        getHistory(token),
-        getAlerts(token),
-        getNotifications(token)
+        getHistory(),
+        getAlerts(),
+        getNotifications()
       ]);
 
       setHistory(historyData.items || []);
       setAlerts(alertsData.items || []);
       setNotifications(notificationsData.items || []);
-      await refreshUser(token);
+      await refreshUser();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -66,7 +100,7 @@ export function DashboardShell() {
   };
 
   const loadTrustpilot = async () => {
-    if (!token || !trustpilotDomain) {
+    if (!isAuthenticated || !reviewProvider) {
       return;
     }
 
@@ -74,13 +108,9 @@ export function DashboardShell() {
     setError("");
 
     try {
-      const [statsData, reviewsData] = await Promise.all([
-        getTrustpilotStats(token, trustpilotDomain),
-        getTrustpilotReviews(token, trustpilotDomain)
-      ]);
-
-      setStats(statsData.stats);
-      setReviews(reviewsData.reviews || []);
+      const payload = await getProviderReviewBundle(reviewProvider);
+      setStats(payload.stats || null);
+      setReviews(payload.reviews || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -93,7 +123,7 @@ export function DashboardShell() {
       loadDashboard();
       loadTrustpilot();
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
   const dashboardStats = useMemo(
     () => [
@@ -118,9 +148,17 @@ export function DashboardShell() {
     [alerts, history, notifications]
   );
 
+  const reviewProviderOptions = useMemo(
+    () =>
+      Object.values(providerDirectory)
+        .filter((provider) => provider.reviewDomain)
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    []
+  );
+
   const handleCreateAlert = async (event) => {
     event.preventDefault();
-    if (!token) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -129,7 +167,7 @@ export function DashboardShell() {
     setError("");
 
     try {
-      const data = await createAlert(token, {
+      const data = await createAlert({
         ...alertForm,
         providerType: alertForm.providerType || undefined
       });
@@ -144,14 +182,14 @@ export function DashboardShell() {
   };
 
   const handleToggleAlert = async (alert) => {
-    if (!token) {
+    if (!isAuthenticated) {
       return;
     }
 
     setError("");
 
     try {
-      const data = await updateAlert(token, alert._id, { active: !alert.active });
+      const data = await updateAlert(alert._id, { active: !alert.active });
       setAlerts((current) =>
         current.map((item) => (item._id === alert._id ? data.alert : item))
       );
@@ -161,19 +199,48 @@ export function DashboardShell() {
   };
 
   const handleDeleteAlert = async (alertId) => {
-    if (!token) {
+    if (!isAuthenticated) {
       return;
     }
 
     setError("");
 
     try {
-      await deleteAlert(token, alertId);
+      await deleteAlert(alertId);
       setAlerts((current) => current.filter((item) => item._id !== alertId));
     } catch (err) {
       setError(err.message);
     }
   };
+
+  const handleEnableBrowserAlerts = async () => {
+    const result = await enableBrowserNotifications();
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setMessage(
+      result.mode === "web-push"
+        ? "Browser alerts enabled. Hulex can now send background browser notifications through web push."
+        : "Browser alerts enabled. Hulex will notify you when new alert events arrive while the site is open."
+    );
+  };
+
+  const handleDisableBrowserAlerts = async () => {
+    await disableBrowserNotifications();
+    setMessage("Browser alerts turned off for this browser.");
+  };
+
+  const browserAlertDetail =
+    browserAlertPermission === "unsupported"
+      ? "This browser does not support notifications."
+      : browserAlertsEnabled && browserAlertsMode === "web-push" && browserAlertPermission === "granted"
+        ? "Background web push is active for this browser, even after you leave the page."
+      : browserAlertsEnabled && browserAlertPermission === "granted"
+        ? "Browser alerts are on for this device."
+        : "Turn on browser alerts to receive live trigger popups while Hulex is open.";
 
   if (!isHydrated) {
     return <section className="dashboard-shell">Loading your dashboard.</section>;
@@ -231,6 +298,25 @@ export function DashboardShell() {
                 <span className="meta-line">{item.detail}</span>
               </article>
             ))}
+          </div>
+
+          <div className="dashboard-browser-alerts">
+            <div className="dashboard-browser-alerts-copy">
+              <span className="section-kicker">Browser alerts</span>
+              <strong>{browserAlertsEnabled ? "Notifications enabled" : "Enable live popups"}</strong>
+              <span className="meta-line">{browserAlertDetail}</span>
+            </div>
+            <div className="inline-actions">
+              {browserAlertsEnabled && browserAlertPermission === "granted" ? (
+                <button className="button button-secondary" onClick={handleDisableBrowserAlerts} type="button">
+                  Turn off browser alerts
+                </button>
+              ) : (
+                <button className="button button-primary" onClick={handleEnableBrowserAlerts} type="button">
+                  Enable browser alerts
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
@@ -415,7 +501,7 @@ export function DashboardShell() {
 
             <section className="dashboard-card">
               <span className="section-kicker">Notifications</span>
-              <h2>Triggered alert events</h2>
+              <h2>Alert triggers and 5-hour rate updates</h2>
               <div className="notification-list">
                 {notifications.length ? (
                   notifications.slice(0, 5).map((item) => (
@@ -434,7 +520,7 @@ export function DashboardShell() {
                     </article>
                   ))
                 ) : (
-                  <div className="empty-state">No alert notifications yet.</div>
+                  <div className="empty-state">No notification events yet.</div>
                 )}
               </div>
             </section>
@@ -444,12 +530,18 @@ export function DashboardShell() {
               <h2>Monitor review signals</h2>
               <div className="form-grid">
                 <div className="field">
-                  <label htmlFor="trustpilot-domain">Company domain</label>
-                  <input
-                    id="trustpilot-domain"
-                    value={trustpilotDomain}
-                    onChange={(event) => setTrustpilotDomain(event.target.value)}
-                  />
+                  <label htmlFor="review-provider">Provider</label>
+                  <select
+                    id="review-provider"
+                    value={reviewProvider}
+                    onChange={(event) => setReviewProvider(event.target.value)}
+                  >
+                    {reviewProviderOptions.map((provider) => (
+                      <option key={provider.alias} value={provider.alias}>
+                        {provider.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button className="button button-secondary" onClick={loadTrustpilot} type="button">
                   {trustpilotLoading ? "Loading..." : "Load review data"}
@@ -492,7 +584,7 @@ export function DashboardShell() {
                   <div className="empty-state">
                     {trustpilotLoading
                       ? "Fetching review data."
-                      : "Load a company domain to inspect provider review signals."}
+                      : "Choose a provider to inspect review signals."}
                   </div>
                 )}
               </div>

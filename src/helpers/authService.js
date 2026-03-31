@@ -1,27 +1,41 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 
+function extractBearerToken(authHeader) {
+  if (typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token || token.length > 4096) {
+    return null;
+  }
+
+  return token;
+}
+
+function verifyAccessToken(token) {
+  return jwt.verify(token, process.env.JWT_SECRET, {
+    issuer: 'hulex-api',
+    audience: 'hulex-client',
+    algorithms: ['HS256'],
+    clockTolerance: 30
+  });
+}
+
 exports.authMiddleware = async (req, res, next) => {
   try {
     // Get token from header
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = extractBearerToken(req.headers.authorization);
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'Authentication required. Please provide a valid token.'
       });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-
     // Verify token with additional options
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      issuer: 'hulex-api',
-      audience: 'hulex-client',
-      algorithms: ['HS256'], // Only allow HS256 algorithm
-      clockTolerance: 30 // Allow 30 seconds clock skew
-    });
+    const decoded = verifyAccessToken(token);
 
     // Check token age - reject if issued too long ago (even if not expired)
     const tokenAge = Date.now() / 1000 - decoded.iat;
@@ -31,6 +45,14 @@ exports.authMiddleware = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         error: 'Token has expired. Please login again.'
+      });
+    }
+
+    if (!decoded.sub || decoded.sub !== String(decoded.userId)) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token. Please login again.',
+        code: 'TOKEN_INVALID'
       });
     }
 
@@ -115,22 +137,20 @@ exports.authMiddleware = async (req, res, next) => {
 // Optional auth: attach user if token is valid, otherwise continue without failing
 exports.optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = extractBearerToken(req.headers.authorization);
+    if (!token) {
       return next();
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      issuer: 'hulex-api',
-      audience: 'hulex-client',
-      algorithms: ['HS256'],
-      clockTolerance: 30
-    });
+    const decoded = verifyAccessToken(token);
 
     const tokenAge = Date.now() / 1000 - decoded.iat;
     const maxTokenAge = 7 * 24 * 60 * 60;
     if (tokenAge > maxTokenAge) {
+      return next();
+    }
+
+    if (!decoded.sub || decoded.sub !== String(decoded.userId)) {
       return next();
     }
 

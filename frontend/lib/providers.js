@@ -1,17 +1,19 @@
 export const SENDWAVE_LOGO_URL =
-  "/provider-logos/sendwave.svg";
+  "/provider-logos/sendwave-wordmark.svg";
 export const TAPTAPSEND_LOGO_URL =
   "/provider-logos/taptapsend.avif";
+export const INSTAREM_LOGO_URL = "/provider-logos/instarem-wordmark.png";
 export const WISE_LOGO_URL = "/provider-logos/wise.svg";
-export const REMITLY_LOGO_URL = "/provider-logos/remitly.svg";
-export const WORLDREMIT_LOGO_URL = "/provider-logos/worldremit.svg";
+export const REMITLY_LOGO_URL = "/provider-logos/remitly.png";
+export const WORLDREMIT_LOGO_URL = "/provider-logos/worldremit.png";
 
 export const providerDirectory = {
   instarem: {
     alias: "instarem",
     name: "Instarem",
     website: "https://www.instarem.com/",
-    reviewDomain: "instarem.com"
+    reviewDomain: "instarem.com",
+    logo: INSTAREM_LOGO_URL
   },
   remitly: {
     alias: "remitly",
@@ -104,11 +106,50 @@ function normalizeProviderKey(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function toSafeHttpsUrl(value) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(String(value));
+    if (url.protocol !== "https:") {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function isKnownProviderAlias(value) {
+  return Boolean(providerDirectory[normalizeProviderKey(value)]);
+}
+
 export function getProviderMeta(provider) {
   const aliasKey = normalizeProviderKey(provider?.alias);
   const nameKey = normalizeProviderKey(provider?.name);
 
   return providerDirectory[aliasKey] || providerDirectory[nameKey] || null;
+}
+
+export function getProviderReviewHref(provider) {
+  const meta = getProviderMeta(provider);
+  const alias = normalizeProviderKey(
+    meta?.alias || provider?.reviewAlias || provider?.alias || provider?.name
+  );
+
+  if (!alias || !providerDirectory[alias]) {
+    return "/compare";
+  }
+
+  return `/providers/${encodeURIComponent(alias)}`;
+}
+
+export function getSafeProviderWebsite(provider) {
+  const meta = getProviderMeta(provider);
+  return toSafeHttpsUrl(meta?.website || provider?.website);
 }
 
 export function withProviderMeta(provider) {
@@ -121,7 +162,7 @@ export function withProviderMeta(provider) {
   return {
     ...provider,
     logo: meta.logo || provider.logo || null,
-    website: meta.website,
+    website: toSafeHttpsUrl(meta.website),
     reviewDomain: meta.reviewDomain,
     reviewAlias: meta.alias
   };

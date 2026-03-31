@@ -4,12 +4,16 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const cors = require("cors");
 const morgan = require("morgan");
+const { isAllowedOrigin, parseAllowedOrigins } = require("./src/helpers/securityUtils");
 
 // Validate environment variables before starting server
 const { validateEnvironment } = require("./src/config/validateEnv");
 validateEnvironment();
 
 const PORT = process.env.PORT || 1000;
+const TRUST_PROXY =
+  process.env.TRUST_PROXY ||
+  (process.env.NODE_ENV === "production" ? "1" : "false");
 
 // Import routes
 const Rateroutes = require("./src/routes/ratesRoutes");
@@ -35,6 +39,12 @@ const {
 // SECURITY MIDDLEWARE
 // ======================
 
+app.disable("x-powered-by");
+app.set(
+  "trust proxy",
+  TRUST_PROXY === "true" ? true : TRUST_PROXY === "false" ? false : TRUST_PROXY
+);
+
 // Helmet - Secure HTTP headers
 app.use(helmetConfig);
 
@@ -49,16 +59,21 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // CORS configuration
+const defaultOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001"
+];
+const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS, defaultOrigins);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',')
-      : ['http://localhost:3000'];
-
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (isAllowedOrigin(origin, allowedOrigins)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -71,10 +86,11 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 // Body parsing with size limits
-app.use(express.json({ limit: '10kb' })); // Limit JSON body to 10kb
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '10kb', strict: true })); // Limit JSON body to 10kb
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 // Rate limiting - Apply general rate limit to all requests
 app.use(speedLimiter);
@@ -194,28 +210,31 @@ const server = app.listen(PORT, () => {
   console.log(`✓ Security middleware active`);
 });
 
+async function closeServerGracefully(signal) {
+  console.log(`${signal} received, closing server gracefully...`);
+  stopAlertCron();
+
+  server.close(async () => {
+    console.log('Server closed');
+
+    try {
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed');
+    } catch (error) {
+      console.error('MongoDB shutdown error:', error);
+    } finally {
+      process.exit(0);
+    }
+  });
+}
+
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, closing server gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    stopAlertCron();
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+  closeServerGracefully('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, closing server gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+  closeServerGracefully('SIGINT');
 });
 
 // Handle unhandled promise rejections

@@ -10,13 +10,19 @@ const {
   DeleteAlert,
   RunAlertCheck,
   GetNotifications,
-  RegisterPushToken
+  RegisterPushToken,
+  GetWebPushConfig,
+  RegisterWebPushSubscription,
+  DeleteWebPushSubscription
 } = require('../controllers/alerts/alerts.controller');
 
+router.get('/alerts/web-push-config', GetWebPushConfig);
 router.post('/alerts', authMiddleware, CreateAlert);
 router.get('/alerts', authMiddleware, GetAlerts);
 router.get('/alerts/notifications', authMiddleware, GetNotifications);
 router.post('/alerts/device-token', authMiddleware, RegisterPushToken);
+router.post('/alerts/web-push-subscription', authMiddleware, RegisterWebPushSubscription);
+router.delete('/alerts/web-push-subscription', authMiddleware, DeleteWebPushSubscription);
 router.post('/alerts/run-check', authMiddleware, RunAlertCheck);
 router.get('/alerts/:id', authMiddleware, GetAlert);
 router.patch('/alerts/:id', authMiddleware, UpdateAlert);

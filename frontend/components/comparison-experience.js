@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { compareRates, getCountries } from "@/lib/api";
 import { formatMoney, formatNumber, providerTypeLabel } from "@/lib/format";
-import { withProviderMeta } from "@/lib/providers";
+import { getProviderReviewHref, withProviderMeta } from "@/lib/providers";
 
 const defaultForm = {
   fromCountry: "US",
@@ -411,7 +411,7 @@ export function ComparisonExperience({ hero = false }) {
               {heroProviders.map((provider, index) => (
                 <Link
                   className="provider-mini-card provider-card-link"
-                  href={`/providers/${provider.reviewAlias || provider.alias || provider.name}`}
+                  href={getProviderReviewHref(provider)}
                   key={`${provider.alias}-${index}`}
                 >
                   <div className="provider-rank">
@@ -566,7 +566,7 @@ export function ComparisonExperience({ hero = false }) {
                 {topProviders.map((provider, index) => (
                   <Link
                     className="result-card provider-card-link"
-                    href={`/providers/${provider.reviewAlias || provider.alias || provider.name}`}
+                    href={getProviderReviewHref(provider)}
                     key={`${provider.alias}-${index}`}
                   >
                     <div className="provider-rank">
@@ -595,7 +595,7 @@ export function ComparisonExperience({ hero = false }) {
                 {allProviders.map((provider, index) => (
                   <Link
                     className="result-card provider-card-link provider-mobile-card"
-                    href={`/providers/${provider.reviewAlias || provider.alias || provider.name}`}
+                    href={getProviderReviewHref(provider)}
                     key={`${provider.alias || provider.id}-mobile-${index}`}
                   >
                     <div className="provider-rank">
@@ -650,7 +650,7 @@ export function ComparisonExperience({ hero = false }) {
                           <td>
                             <Link
                               className="button button-secondary button-small"
-                              href={`/providers/${provider.reviewAlias || provider.alias || provider.name}`}
+                              href={getProviderReviewHref(provider)}
                             >
                               Open reviews
                             </Link>

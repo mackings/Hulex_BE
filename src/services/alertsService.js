@@ -1,64 +1,8 @@
 const Alert = require('../models/alertModel');
 const AlertNotification = require('../models/alertNotificationModel');
 const User = require('../models/userModel');
-const { getWiseComparison, getSendWaveRates } = require('../helpers/wiseApi');
-const { formatProviderData, getCountryIso2ByCurrency } = require('../helpers/currencyHelper');
+const { fetchComparableProviders } = require('../helpers/providerComparison');
 const { sendPushToUser } = require('./pushService');
-
-function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency) {
-  const rate = parseFloat(data?.effectiveExchangeRate || data?.baseExchangeRate || 0);
-  const fee = parseFloat(data?.effectiveFeeAmount || data?.baseFeeAmount || 0);
-  const receivedAmount = parseFloat(data?.receiveAmount || 0);
-
-  return {
-    id: 'sendwave',
-    name: 'Sendwave',
-    alias: 'sendwave',
-    type: 'remittance',
-    logo: null,
-    rate: rate || 0,
-    fee: fee || 0,
-    receivedAmount: receivedAmount || 0,
-    sendAmount: sendAmount,
-    markup: null,
-    deliveryTime: null,
-    isMidMarketRate: false,
-    sourceCountry: getCountryIso2ByCurrency(sourceCurrency),
-    targetCountry: getCountryIso2ByCurrency(targetCurrency),
-    dateCollected: new Date().toISOString()
-  };
-}
-
-async function fetchProviders(sourceCurrency, targetCurrency, sendAmount) {
-  const comparisonData = await getWiseComparison(sourceCurrency, targetCurrency, sendAmount);
-  let providers = formatProviderData(comparisonData.providers || []);
-
-  try {
-    const sendCountryIso2 = getCountryIso2ByCurrency(sourceCurrency);
-    const receiveCountryIso2 = getCountryIso2ByCurrency(targetCurrency);
-
-    if (sendCountryIso2 && receiveCountryIso2) {
-      const sendWaveData = await getSendWaveRates(
-        sourceCurrency,
-        targetCurrency,
-        sendCountryIso2,
-        receiveCountryIso2,
-        sendAmount
-      );
-      const sendWaveProvider = formatSendWaveProvider(
-        sendWaveData,
-        sendAmount,
-        sourceCurrency,
-        targetCurrency
-      );
-      providers.push(sendWaveProvider);
-    }
-  } catch (err) {
-    console.warn('SendWave fetch failed during alerts:', err.message);
-  }
-
-  return providers;
-}
 
 function pickBestProvider(providers, providerType) {
   let list = providers;
@@ -75,12 +19,18 @@ async function sendPushNotification(user, message) {
     title: 'Rate Alert',
     body: message,
     data: { type: 'rate_alert' },
+    tag: 'hulex-rate-alert',
+    url: '/dashboard',
     androidChannelId: 'rate_alerts'
   });
 }
 
 async function runAlertCheckForAlert(alert) {
-  const providers = await fetchProviders(alert.fromCurrency, alert.toCurrency, alert.amount);
+  const providers = await fetchComparableProviders({
+    sourceCurrency: alert.fromCurrency,
+    targetCurrency: alert.toCurrency,
+    sendAmount: alert.amount
+  });
   const bestProvider = pickBestProvider(providers, alert.providerType);
 
   const now = new Date();
@@ -116,7 +66,7 @@ async function runAlertCheckForAlert(alert) {
     triggeredAt: now
   });
 
-  const user = await User.findById(alert.userId).select('pushTokens');
+  const user = await User.findById(alert.userId).select('pushTokens webPushSubscriptions');
   const pushResult = await sendPushNotification(user, message);
 
   notification.deliveryStatus = pushResult.success ? 'sent' : 'failed';

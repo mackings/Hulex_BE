@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../../helpers/emailService');
 const User = require('../../models/userModel');
+const { generateNumericOtp, hashOtp } = require('../../helpers/securityUtils');
 
 
 
@@ -22,8 +23,8 @@ exports.CreateAccount = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate 5-digit OTP
-    const verificationOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    // Generate 5-digit OTP and only store its hash.
+    const verificationOTP = generateNumericOtp(5);
     const verificationOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Create user
@@ -35,7 +36,7 @@ exports.CreateAccount = async (req, res) => {
       phone,
       country,
       address,
-      verificationOTP,
+      verificationOTP: hashOtp(verificationOTP),
       verificationOTPExpiry,
       isVerified: false
     });
@@ -63,7 +64,7 @@ exports.VerifyEmail = async (req, res) => {
     const { otp } = req.body;
 
     const user = await User.findOne({
-      verificationOTP: otp,
+      verificationOTP: hashOtp(otp),
       verificationOTPExpiry: { $gt: Date.now() }
     });
 
@@ -179,14 +180,16 @@ exports.Login = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user._id,
-        email: user.email,
-        iat: Math.floor(Date.now() / 1000)
+        email: user.email
       },
       process.env.JWT_SECRET,
       {
         expiresIn: process.env.JWT_EXPIRY || '7d',
+        algorithm: 'HS256',
         issuer: 'hulex-api',
-        audience: 'hulex-client'
+        audience: 'hulex-client',
+        subject: String(user._id),
+        jwtid: crypto.randomUUID()
       }
     );
 
@@ -236,11 +239,11 @@ exports.RequestPasswordReset = async (req, res) => {
       });
     }
 
-    // Generate 5-digit OTP
-    const resetOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    // Generate 5-digit OTP and only store its hash.
+    const resetOTP = generateNumericOtp(5);
     const resetOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    user.resetOTP = resetOTP;
+    user.resetOTP = hashOtp(resetOTP);
     user.resetOTPExpiry = resetOTPExpiry;
     await user.save();
 
@@ -266,7 +269,7 @@ exports.ResetPassword = async (req, res) => {
     const { otp, newPassword } = req.body;
 
     const user = await User.findOne({
-      resetOTP: otp,
+      resetOTP: hashOtp(otp),
       resetOTPExpiry: { $gt: Date.now() }
     });
 
@@ -283,6 +286,8 @@ exports.ResetPassword = async (req, res) => {
     user.password = hashedPassword;
     user.resetOTP = undefined;
     user.resetOTPExpiry = undefined;
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
     await user.save();
 
     res.json({
@@ -318,11 +323,11 @@ exports.ResendVerification = async (req, res) => {
       });
     }
 
-    // Generate new 5-digit OTP
-    const verificationOTP = Math.floor(10000 + Math.random() * 90000).toString();
+    // Generate new 5-digit OTP and only store its hash.
+    const verificationOTP = generateNumericOtp(5);
     const verificationOTPExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    user.verificationOTP = verificationOTP;
+    user.verificationOTP = hashOtp(verificationOTP);
     user.verificationOTPExpiry = verificationOTPExpiry;
     await user.save();
 

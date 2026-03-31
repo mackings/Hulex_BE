@@ -43,14 +43,6 @@ async function request(path, options = {}) {
   return payload;
 }
 
-function withAuth(token) {
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
-}
-
 export function getCurrencies() {
   return request("/currencies");
 }
@@ -60,100 +52,104 @@ export function getCountries() {
 }
 
 export function compareRates(params) {
-  return request(`/rates/compare${buildQuery(params)}`);
+  return request(`/compare${buildQuery(params)}`);
 }
 
-export function getPublicTrustpilotStats(companyDomain) {
-  return request(`/public/trustpilot/stats${buildQuery({ company_domain: companyDomain })}`);
-}
-
-export function getPublicTrustpilotReviews(companyDomain) {
-  return request(
-    `/public/trustpilot/reviews${buildQuery({ company_domain: companyDomain, locale: "en-US", page: 1 })}`
-  );
+export function getProviderReviewBundle(providerAlias) {
+  return request(`/provider-reviews/${encodeURIComponent(providerAlias)}`);
 }
 
 export function registerUser(payload) {
-  return request("/register", {
+  return request("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
 export function verifyEmail(payload) {
-  return request("/verify-email", {
+  return request("/auth/verify", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
 export function loginUser(payload) {
-  return request("/login", {
+  return request("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
 export function requestPasswordReset(payload) {
-  return request("/request-password-reset", {
+  return request("/auth/reset/request", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
 export function resetPassword(payload) {
-  return request("/reset-password", {
+  return request("/auth/reset", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
-export function getMe(token) {
-  return request("/me", withAuth(token));
+export function getMe() {
+  return request("/profile");
 }
 
-export function getHistory(token) {
-  return request("/history", withAuth(token));
+export function getHistory() {
+  return request("/history");
 }
 
-export function getAlerts(token) {
-  return request("/alerts", withAuth(token));
+export function getAlerts() {
+  return request("/alerts");
 }
 
-export function createAlert(token, payload) {
+export function createAlert(payload) {
   return request("/alerts", {
     method: "POST",
-    body: JSON.stringify(payload),
-    ...withAuth(token)
+    body: JSON.stringify(payload)
   });
 }
 
-export function updateAlert(token, alertId, payload) {
+export function updateAlert(alertId, payload) {
   return request(`/alerts/${alertId}`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
-    ...withAuth(token)
+    body: JSON.stringify(payload)
   });
 }
 
-export function deleteAlert(token, alertId) {
+export function deleteAlert(alertId) {
   return request(`/alerts/${alertId}`, {
-    method: "DELETE",
-    ...withAuth(token)
+    method: "DELETE"
   });
 }
 
-export function getNotifications(token) {
-  return request("/alerts/notifications", withAuth(token));
+export function getNotifications() {
+  return request("/alerts/notifications");
 }
 
-export function getTrustpilotStats(token, companyDomain) {
-  return request(`/trustpilot/stats${buildQuery({ company_domain: companyDomain })}`, withAuth(token));
+export function getWebPushConfig() {
+  return request("/alerts/web-push-config");
 }
 
-export function getTrustpilotReviews(token, companyDomain) {
-  return request(
-    `/trustpilot/reviews${buildQuery({ company_domain: companyDomain, locale: "en-US", page: 1 })}`,
-    withAuth(token)
-  );
+export function registerWebPushSubscription(subscription) {
+  return request("/alerts/web-push-subscription", {
+    method: "POST",
+    body: JSON.stringify({ subscription })
+  });
+}
+
+export function deleteWebPushSubscription(endpoint) {
+  return request("/alerts/web-push-subscription", {
+    method: "DELETE",
+    body: JSON.stringify({ endpoint })
+  });
+}
+
+export function deleteSession() {
+  return request("/auth/logout", {
+    method: "DELETE"
+  });
 }

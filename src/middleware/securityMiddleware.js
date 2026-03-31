@@ -9,6 +9,8 @@ exports.helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'https:'],
@@ -17,8 +19,13 @@ exports.helmetConfig = helmet({
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
+      frameAncestors: ["'none'"],
     },
   },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-site' },
+  dnsPrefetchControl: { allow: false },
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
@@ -133,7 +140,7 @@ exports.securityLogger = (req, res, next) => {
   // Log suspicious activities
   const suspiciousPatterns = [
     /(\.\.|\/etc\/|\/bin\/|cmd\.exe|powershell)/i,
-    /(union|select|insert|update|delete|drop|create|alter|exec|script|javascript)/i,
+    /\b(union|select|insert|update|delete|drop|create|alter|exec|javascript)\b/i,
     /(<script|<iframe|<object|<embed|onerror|onload)/i,
   ];
 
@@ -156,6 +163,35 @@ exports.securityLogger = (req, res, next) => {
     return false;
   };
 
+  const redactSensitiveData = (value) => {
+    if (Array.isArray(value)) {
+      return value.map(redactSensitiveData);
+    }
+
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const sensitiveKeys = new Set([
+      'authorization',
+      'password',
+      'newPassword',
+      'otp',
+      'resetOTP',
+      'verificationOTP',
+      'token'
+    ]);
+
+    const redacted = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      redacted[key] = sensitiveKeys.has(String(key))
+        ? '[REDACTED]'
+        : redactSensitiveData(nestedValue);
+    }
+
+    return redacted;
+  };
+
   let suspicious = false;
   if (req.body && checkObject(req.body)) suspicious = true;
   if (req.query && checkObject(req.query)) suspicious = true;
@@ -169,8 +205,8 @@ exports.securityLogger = (req, res, next) => {
       method: req.method,
       url: req.originalUrl,
       userAgent: req.headers['user-agent'],
-      body: req.body,
-      query: req.query,
+      body: redactSensitiveData(req.body),
+      query: redactSensitiveData(req.query),
     });
   }
 

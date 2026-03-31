@@ -419,9 +419,9 @@ export function AuthShell({ mode = "login", notice = "", email = "" }) {
 
     try {
       const data = await loginUser(forms.login);
-      setSession(data.token, data.user);
-      await refreshUser(data.token);
-      router.push("/dashboard");
+      setSession(data.user);
+      await refreshUser();
+      router.push("/");
     } catch (err) {
       setError(err.message);
     } finally {

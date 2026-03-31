@@ -1,4 +1,5 @@
 const { getCompanyReviews, getCompanyInfo, formatReviewData } = require('../../helpers/trustpilotApi');
+const { isAllowedTrustpilotDomain, normalizeCompanyDomain } = require('../../helpers/securityUtils');
 
 // Simple in-memory cache for reviews to reduce duplicate fetches
 const REVIEWS_CACHE = new Map();
@@ -46,6 +47,14 @@ exports.getReviews = async (req, res) => {
       });
     }
 
+    const normalizedDomain = normalizeCompanyDomain(company_domain);
+    if (!normalizedDomain || !isAllowedTrustpilotDomain(normalizedDomain)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reviews are not available for that provider domain.'
+      });
+    }
+
     // Validate date_posted parameter if provided
     const validDateFilters = ['any', 'last_week', 'last_month', 'last_year'];
     if (date_posted && !validDateFilters.includes(date_posted)) {
@@ -64,7 +73,7 @@ exports.getReviews = async (req, res) => {
     }
 
     const queryParams = {
-      company_domain,
+      company_domain: normalizedDomain,
       locale: locale || 'en-US',
       date_posted: date_posted || 'any',
       page: page ? parseInt(page) : 1
@@ -127,8 +136,16 @@ exports.getCompany = async (req, res) => {
       });
     }
 
+    const normalizedDomain = normalizeCompanyDomain(company_domain);
+    if (!normalizedDomain || !isAllowedTrustpilotDomain(normalizedDomain)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Company information is not available for that provider domain.'
+      });
+    }
+
     // Fetch company info from Trustpilot API
-    const result = await getCompanyInfo(company_domain);
+    const result = await getCompanyInfo(normalizedDomain);
 
     if (!result.success) {
       return res.status(result.status || 500).json({
@@ -167,9 +184,17 @@ exports.getStats = async (req, res) => {
       });
     }
 
+    const normalizedDomain = normalizeCompanyDomain(company_domain);
+    if (!normalizedDomain || !isAllowedTrustpilotDomain(normalizedDomain)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Statistics are not available for that provider domain.'
+      });
+    }
+
     // Fetch reviews
     const result = await getCompanyReviews({
-      company_domain,
+      company_domain: normalizedDomain,
       locale: 'en-US',
       date_posted: 'any',
       page: 1

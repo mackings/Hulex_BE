@@ -3,6 +3,7 @@ const AlertNotification = require('../../models/alertNotificationModel');
 const User = require('../../models/userModel');
 const { runAlertsCheck } = require('../../services/alertsService');
 const { validateCurrency } = require('../../helpers/currencyHelper');
+const { getWebPushPublicConfig } = require('../../config/webPush');
 
 exports.CreateAlert = async (req, res) => {
   try {
@@ -194,5 +195,101 @@ exports.RegisterPushToken = async (req, res) => {
   } catch (err) {
     console.error('RegisterPushToken error:', err);
     res.status(500).json({ success: false, error: 'Failed to register push token' });
+  }
+};
+
+exports.GetWebPushConfig = async (_req, res) => {
+  try {
+    const config = getWebPushPublicConfig();
+    res.json({ success: true, ...config });
+  } catch (err) {
+    console.error('GetWebPushConfig error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch web push config' });
+  }
+};
+
+exports.RegisterWebPushSubscription = async (req, res) => {
+  try {
+    const { subscription } = req.body;
+
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid web push subscription is required'
+      });
+    }
+
+    let endpoint;
+    try {
+      endpoint = new URL(subscription.endpoint).toString();
+    } catch {
+      return res.status(400).json({ success: false, error: 'Invalid subscription endpoint' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const existing = user.webPushSubscriptions.find((item) => item.endpoint === endpoint);
+    if (!existing) {
+      user.webPushSubscriptions.push({
+        endpoint,
+        expirationTime: subscription.expirationTime || null,
+        keys: {
+          p256dh: subscription.keys.p256dh,
+          auth: subscription.keys.auth
+        },
+        userAgent: String(req.headers['user-agent'] || '')
+      });
+    } else {
+      existing.expirationTime = subscription.expirationTime || null;
+      existing.keys = {
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      };
+      existing.userAgent = String(req.headers['user-agent'] || existing.userAgent || '');
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Web push subscription registered',
+      subscriptions: user.webPushSubscriptions.length
+    });
+  } catch (err) {
+    console.error('RegisterWebPushSubscription error:', err);
+    res.status(500).json({ success: false, error: 'Failed to register web push subscription' });
+  }
+};
+
+exports.DeleteWebPushSubscription = async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+
+    if (!endpoint) {
+      return res.status(400).json({ success: false, error: 'endpoint is required' });
+    }
+
+    const normalizedEndpoint = new URL(endpoint).toString();
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $pull: { webPushSubscriptions: { endpoint: normalizedEndpoint } } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Web push subscription removed',
+      subscriptions: user.webPushSubscriptions.length
+    });
+  } catch (err) {
+    console.error('DeleteWebPushSubscription error:', err);
+    res.status(500).json({ success: false, error: 'Failed to remove web push subscription' });
   }
 };

@@ -96,54 +96,7 @@ export function SiteFooter() {
   ];
 
   return (
-    <footer className="site-footer">
-      <div className="footer-panel">
-        <div className="site-footer-brand">
-          <Link className="brand-lockup" href="/">
-            <div className="brand-mark">HX</div>
-            <div className="brand-text">
-              <strong>Hulex</strong>
-              <span>Every penny counts. Compare the cheapest transfer rates across providers.</span>
-            </div>
-          </Link>
-          <p>
-            Compare returned payout, save corridor alerts, and keep provider trust signals
-            in one clean dashboard.
-          </p>
-        </div>
-
-        <div className="site-footer-links">
-          <Link href="/compare">
-            <span className="site-footer-link-icon" aria-hidden="true">
-              <FooterIcon kind="compare" />
-            </span>
-            <div className="site-footer-link-copy">
-              <strong>Compare</strong>
-              <span>Live payout view</span>
-            </div>
-          </Link>
-          <Link href="/dashboard">
-            <span className="site-footer-link-icon" aria-hidden="true">
-              <FooterIcon kind="alerts" />
-            </span>
-            <div className="site-footer-link-copy">
-              <strong>History</strong>
-              <span>Alerts and saved checks</span>
-            </div>
-          </Link>
-          <Link href="/profile">
-            <span className="site-footer-link-icon" aria-hidden="true">
-              <FooterIcon kind="account" />
-            </span>
-            <div className="site-footer-link-copy">
-              <strong>Profile</strong>
-              <span>Account details</span>
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      <nav className="mobile-footer-nav">
+    <nav aria-label="Mobile navigation" className="mobile-footer-nav">
         {mobileItems.map((item) => (
           <Link className={footerNavClass(pathname, item.href)} href={item.href} key={`${item.label}-${item.href}`}>
             <span className="mobile-footer-icon" aria-hidden="true">
@@ -152,7 +105,6 @@ export function SiteFooter() {
             <span>{item.label}</span>
           </Link>
         ))}
-      </nav>
-    </footer>
+    </nav>
   );
 }

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getPublicTrustpilotReviews, getPublicTrustpilotStats } from "@/lib/api";
+import { getProviderReviewBundle } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import { getProviderMeta, withProviderMeta } from "@/lib/providers";
+import { getProviderMeta, getSafeProviderWebsite, withProviderMeta } from "@/lib/providers";
 
 function ReviewMetaIcon({ children }) {
   return (
@@ -81,6 +81,7 @@ export function ProviderReviewShell({ providerAlias }) {
   const [reviews, setReviews] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const providerWebsite = useMemo(() => getSafeProviderWebsite(providerMeta), [providerMeta]);
 
   useEffect(() => {
     let active = true;
@@ -94,17 +95,14 @@ export function ProviderReviewShell({ providerAlias }) {
     setIsLoading(true);
     setError("");
 
-    Promise.all([
-      getPublicTrustpilotStats(providerMeta.reviewDomain),
-      getPublicTrustpilotReviews(providerMeta.reviewDomain)
-    ])
-      .then(([statsData, reviewsData]) => {
+    getProviderReviewBundle(providerMeta.alias)
+      .then((payload) => {
         if (!active) {
           return;
         }
 
-        setStats(statsData.stats || null);
-        setReviews((reviewsData.reviews || []).slice(0, 3));
+        setStats(payload.stats || null);
+        setReviews((payload.reviews || []).slice(0, 3));
       })
       .catch((err) => {
         if (active) {
@@ -139,11 +137,11 @@ export function ProviderReviewShell({ providerAlias }) {
           </div>
 
           <div className="provider-review-actions">
-            {providerMeta?.website ? (
+            {providerWebsite ? (
               <a
                 className="button button-secondary"
-                href={providerMeta.website}
-                rel="noreferrer"
+                href={providerWebsite}
+                rel="noopener noreferrer"
                 target="_blank"
               >
                 Visit provider site

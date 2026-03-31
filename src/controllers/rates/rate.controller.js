@@ -9,8 +9,7 @@ const {getRevolutRates } = require("../Utils/revolut")
 
 
 
-const { getWiseComparison, getWiseRates ,getSendWaveRates, } = require('../../helpers/wiseApi');
-const { getTaptapSendRates } = require("../../helpers/taptapSendApi");
+const { getWiseComparison, getWiseRates } = require('../../helpers/wiseApi');
 const {
   validateCurrency,
   getCurrencyDetails,
@@ -19,51 +18,7 @@ const {
   getCountryIso2ByCurrency
 } = require('../../helpers/currencyHelper');
 const { recordRateHistory } = require('../../helpers/historyService');
-
-// Map SendWave response into the same provider-shaped object the comparison API returns
-function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency) {
-  const rate = parseFloat(data?.effectiveExchangeRate || data?.baseExchangeRate || 0);
-  const fee = parseFloat(data?.effectiveFeeAmount || data?.baseFeeAmount || 0);
-  const receivedAmount = parseFloat(data?.receiveAmount || 0);
-
-  return {
-    id: 'sendwave',
-    name: 'Sendwave',
-    alias: 'sendwave',
-    type: 'remittance',
-    logo: null,
-    rate: rate || 0,
-    fee: fee || 0,
-    receivedAmount: receivedAmount || 0,
-    sendAmount: sendAmount,
-    markup: null,
-    deliveryTime: null,
-    isMidMarketRate: false,
-    sourceCountry: getCountryIso2ByCurrency(sourceCurrency),
-    targetCountry: getCountryIso2ByCurrency(targetCurrency),
-    dateCollected: new Date().toISOString()
-  };
-}
-
-function formatTaptapSendProvider(data, sendAmount) {
-  return {
-    id: "taptapsend",
-    name: "Taptap Send",
-    alias: "taptapsend",
-    type: "remittance",
-    logo: null,
-    rate: data.rate || 0,
-    fee: data.fee || 0,
-    receivedAmount: data.receivedAmount || 0,
-    sendAmount: sendAmount,
-    markup: null,
-    deliveryTime: null,
-    isMidMarketRate: false,
-    sourceCountry: data.sourceCountry,
-    targetCountry: data.targetCountry,
-    dateCollected: data.dateCollected || new Date().toISOString()
-  };
-}
+const { fetchComparableProviders } = require("../../helpers/providerComparison");
 
 exports.GetRatesComparison = async (req, res) => {
   try {
@@ -130,57 +85,19 @@ exports.GetRatesComparison = async (req, res) => {
     const sourceCurrencyDetails = getCurrencyDetails(sourceCurrency);
     const targetCurrencyDetails = getCurrencyDetails(targetCurrency);
 
-    // Fetch comparison data from Wise API
-    const comparisonData = await getWiseComparison(sourceCurrency, targetCurrency, sendAmount);
-
-    // Format provider data
-    let providers = formatProviderData(comparisonData.providers);
-
-    // Also fetch provider-specific public quote adapters and normalize them.
-    const sendCountryIso2 = fromCountry ? fromCountry.toUpperCase() : getCountryIso2ByCurrency(sourceCurrency);
-    const receiveCountryIso2 = toCountry ? toCountry.toUpperCase() : getCountryIso2ByCurrency(targetCurrency);
-
-    if (!sendCountryIso2 || !receiveCountryIso2) {
-      console.warn(`Public quote adapters skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`);
-    } else {
-      const publicProviders = await Promise.all([
-        getSendWaveRates(
-          sourceCurrency,
-          targetCurrency,
-          sendCountryIso2,
-          receiveCountryIso2,
-          sendAmount
-        )
-          .then((data) => formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency))
-          .catch((error) => {
-            console.warn("SendWave fetch failed:", error.message);
-            return null;
-          }),
-        getTaptapSendRates(
-          sourceCurrency,
-          targetCurrency,
-          sendCountryIso2,
-          receiveCountryIso2,
-          sendAmount
-        )
-          .then((data) => formatTaptapSendProvider(data, sendAmount))
-          .catch((error) => {
-            console.warn("Taptap Send fetch failed:", error.message);
-            return null;
-          })
-      ]);
-
-      providers.push(...publicProviders.filter(Boolean));
-    }
+    let providers = await fetchComparableProviders({
+      sourceCurrency,
+      targetCurrency,
+      sendAmount,
+      fromCountry,
+      toCountry
+    });
 
     // Filter by provider type if specified
     if (providerTypes) {
       const types = Array.isArray(providerTypes) ? providerTypes : [providerTypes];
       providers = providers.filter(p => types.includes(p.type));
     }
-
-    // Sort by best received amount (descending)
-    providers.sort((a, b) => b.receivedAmount - a.receivedAmount);
 
     // Calculate statistics
     const stats = {

@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap");
-
 :root {
   --bg: #fcfcfc;
   --bg-soft: #f5f8ff;
@@ -24,7 +22,7 @@
   --radius-lg: 28px;
   --radius-md: 20px;
   --radius-sm: 14px;
-  --shell: min(1480px, calc(100vw - 40px));
+  --shell: min(1540px, calc(100vw - 40px));
 }
 
 * {
@@ -43,7 +41,6 @@ body {
     radial-gradient(circle at top right, rgba(236, 72, 153, 0.12), transparent 26%),
     linear-gradient(180deg, #ffffff 0%, #f8faff 40%, #f7f9ff 100%);
   color: var(--text);
-  font-family: "DM Sans", sans-serif;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
@@ -219,7 +216,7 @@ main {
 .compare-page-intro {
   display: grid;
   gap: 18px;
-  padding: 24px;
+  padding: 22px;
   border-radius: var(--radius-xl);
 }
 
@@ -234,8 +231,8 @@ main {
 }
 
 .compare-page-intro-grid {
-  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) minmax(520px, 0.96fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -263,8 +260,8 @@ main {
 }
 
 .compare-intro-rail {
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  padding: 18px;
   border: 1px solid rgba(18, 45, 151, 0.1);
   border-radius: 28px;
   background:
@@ -308,24 +305,32 @@ main {
 }
 
 .compare-intro-provider-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .compare-intro-provider {
   grid-template-columns: auto 1fr;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
+  min-height: 98px;
   padding: 12px 14px;
   border: 1px solid rgba(18, 45, 151, 0.08);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.84);
 }
 
+.compare-intro-provider:last-child {
+  grid-column: 1 / -1;
+}
+
 .compare-intro-provider-mark {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 68px;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(79, 84, 227, 0.12), rgba(236, 72, 153, 0.08));
   border: 1px solid rgba(18, 45, 151, 0.1);
@@ -339,13 +344,35 @@ main {
 }
 
 .compare-intro-provider-logo {
-  width: 100%;
-  height: 100%;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  padding: 6px;
+  margin: 0 auto;
+}
+
+.compare-intro-provider-logo-sendwave,
+.compare-intro-provider-logo-worldremit {
+  max-width: 54px;
+  max-height: 26px;
+}
+
+.compare-intro-provider-logo-remitly,
+.compare-intro-provider-logo-instarem {
+  max-width: 56px;
+  max-height: 34px;
+}
+
+.compare-intro-provider-logo-taptapsend,
+.compare-intro-provider-logo-wise {
+  max-width: 46px;
+  max-height: 46px;
 }
 
 .compare-intro-provider-copy {
+  display: grid;
   gap: 2px;
 }
 
@@ -1349,8 +1376,8 @@ main {
 
 .comparison-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
 }
 
@@ -1397,7 +1424,7 @@ main {
 .comparison-country-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .country-picker {
@@ -1406,8 +1433,8 @@ main {
 
 .country-picker-trigger {
   width: 100%;
-  min-height: 58px;
-  padding: 12px 14px;
+  min-height: 72px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1433,12 +1460,12 @@ main {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .country-picker-flag,
 .country-picker-option-flag {
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
@@ -1451,7 +1478,7 @@ main {
 
 .country-picker-copy strong,
 .country-picker-option-copy strong {
-  font-size: 0.95rem;
+  font-size: 1.04rem;
   letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
@@ -1461,7 +1488,7 @@ main {
 .country-picker-copy span,
 .country-picker-option-copy span {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1555,14 +1582,14 @@ main {
 
 .comparison-amount-input,
 .compare-form-card .field input {
-  min-height: 50px;
-  padding: 0 14px;
-  font-size: 1rem;
+  min-height: 56px;
+  padding: 0 16px;
+  font-size: 1.04rem;
 }
 
 .field label {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.94rem;
   font-weight: 600;
 }
 
@@ -1654,6 +1681,7 @@ main {
 }
 
 .provider-brand-logo {
+  width: 72px;
   background: rgba(255, 255, 255, 0.94);
 }
 
@@ -1661,7 +1689,7 @@ main {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 6px;
+  padding: 4px 6px;
 }
 
 .rank-badge {
@@ -1749,6 +1777,27 @@ main {
 .auth-shell,
 .dashboard-shell {
   padding-bottom: 72px;
+}
+
+.dashboard-browser-alerts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(18, 45, 151, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.dashboard-browser-alerts-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-browser-alerts-copy strong {
+  font-size: 1rem;
+  letter-spacing: -0.03em;
 }
 
 .auth-copy-modern,
@@ -2218,6 +2267,10 @@ main {
 }
 
 @media (max-width: 1100px) {
+  .site-frame {
+    padding-bottom: 92px;
+  }
+
   .hero-shell,
   .experience-grid,
   .auth-grid,
@@ -2251,11 +2304,11 @@ main {
     grid-template-columns: 1fr;
   }
 
-  .compare-results-card {
+  .compare-form-card {
     order: -1;
   }
 
-  .compare-form-card {
+  .compare-results-card {
     order: 1;
   }
 
@@ -2281,15 +2334,6 @@ main {
   }
 
   .hero-shell {
-    gap: 16px;
-  }
-
-  .hero-visual-column {
-    order: -1;
-  }
-
-  .hero-copy-block {
-    order: 1;
     gap: 16px;
   }
 
@@ -2392,6 +2436,11 @@ main {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-browser-alerts {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .comparison-hero-card .provider-mini-card {
     grid-template-columns: 1fr;
   }
@@ -2444,9 +2493,17 @@ main {
     grid-template-columns: 1fr;
   }
 
-  .compare-page-intro-grid,
-  .compare-intro-stat-row {
+.compare-page-intro-grid,
+.compare-intro-stat-row {
+  grid-template-columns: 1fr;
+}
+
+  .compare-intro-provider-list {
     grid-template-columns: 1fr;
+  }
+
+  .compare-intro-provider:last-child {
+    grid-column: auto;
   }
 
   .compare-page-actions .button {

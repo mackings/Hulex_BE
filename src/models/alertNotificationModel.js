@@ -10,7 +10,6 @@ const alertNotificationSchema = new mongoose.Schema({
   alertId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Alert',
-    required: true,
     index: true
   },
   message: {
@@ -32,6 +31,11 @@ const alertNotificationSchema = new mongoose.Schema({
   channel: {
     type: String,
     default: 'push'
+  },
+  kind: {
+    type: String,
+    enum: ['alert', 'rate_digest'],
+    default: 'alert'
   },
   deliveryStatus: {
     type: String,

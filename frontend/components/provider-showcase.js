@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { compareRates } from "@/lib/api";
 import { formatMoney, formatNumber, providerTypeLabel } from "@/lib/format";
-import { withProviderMeta } from "@/lib/providers";
+import { getProviderReviewHref, withProviderMeta } from "@/lib/providers";
 
 const defaultQuery = {
   fromCurrency: "USD",
@@ -161,7 +161,7 @@ export function ProviderShowcase() {
                 return (
                   <Link
                     className="provider-slide-card"
-                    href={`/providers/${provider.reviewAlias || provider.alias || provider.name}`}
+                    href={getProviderReviewHref(provider)}
                     key={`${provider.alias || provider.name}-${index}`}
                   >
                     {content}
