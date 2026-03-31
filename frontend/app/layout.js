@@ -1,6 +1,5 @@
 import { AuthProvider } from "@/components/auth-provider";
 import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 export const metadata = {
@@ -19,7 +18,6 @@ export default function RootLayout({ children }) {
             <div className="site-glow site-glow-right" />
             <SiteHeader />
             <main>{children}</main>
-            <SiteFooter />
           </div>
         </AuthProvider>
       </body>

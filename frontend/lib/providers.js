@@ -1,7 +1,10 @@
 export const SENDWAVE_LOGO_URL =
-  "https://images.ctfassets.net/pqe6664kagrv/1dZzZQVGSTsOwmxCDwUNsf/d83e1361659b72c178b094b85ac348ee/Group.svg?w=500";
+  "/provider-logos/sendwave.svg";
 export const TAPTAPSEND_LOGO_URL =
-  "https://cdn.prod.website-files.com/5ae897b18423ad8b62ceba7c/5af09148dda0362a17ad6abf_logo_icon_white_bg%402x.avif";
+  "/provider-logos/taptapsend.avif";
+export const WISE_LOGO_URL = "/provider-logos/wise.svg";
+export const REMITLY_LOGO_URL = "/provider-logos/remitly.svg";
+export const WORLDREMIT_LOGO_URL = "/provider-logos/worldremit.svg";
 
 export const providerDirectory = {
   instarem: {
@@ -14,13 +17,15 @@ export const providerDirectory = {
     alias: "remitly",
     name: "Remitly",
     website: "https://www.remitly.com/",
-    reviewDomain: "remitly.com"
+    reviewDomain: "remitly.com",
+    logo: REMITLY_LOGO_URL
   },
   wise: {
     alias: "wise",
     name: "Wise",
     website: "https://wise.com/",
-    reviewDomain: "wise.com"
+    reviewDomain: "wise.com",
+    logo: WISE_LOGO_URL
   },
   sendwave: {
     alias: "sendwave",
@@ -33,7 +38,8 @@ export const providerDirectory = {
     alias: "worldremit",
     name: "WorldRemit",
     website: "https://www.worldremit.com/",
-    reviewDomain: "worldremit.com"
+    reviewDomain: "worldremit.com",
+    logo: WORLDREMIT_LOGO_URL
   },
   xe: {
     alias: "xe",

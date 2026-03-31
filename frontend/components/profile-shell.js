@@ -62,11 +62,15 @@ export function ProfileShell() {
                   alerts or comparison whenever you need to check the market.
                 </p>
               </div>
-              <div className="inline-actions">
-                <Link className="button button-secondary" href="/dashboard">
+              <div className="inline-actions profile-toolbar">
+                <Link className="button button-secondary profile-toolbar-button" href="/dashboard">
                   Open alerts
                 </Link>
-                <button className="button button-ghost" onClick={clearSession} type="button">
+                <button
+                  className="button button-ghost profile-toolbar-button"
+                  onClick={clearSession}
+                  type="button"
+                >
                   Sign out
                 </button>
               </div>
@@ -91,12 +95,19 @@ export function ProfileShell() {
               <span className="section-kicker">Quick actions</span>
               <h2>Move quickly between live comparison and saved alerts.</h2>
               <div className="profile-action-list">
-                <Link className="button button-primary" href="/compare">
-                  Compare live rates
+                <Link className="profile-action-link profile-action-link-primary" href="/compare">
+                  <span>Live comparison</span>
+                  <strong>Compare live rates</strong>
                 </Link>
-                <Link className="button button-secondary" href="/dashboard">
-                  Go to alerts
+                <Link className="profile-action-link profile-action-link-secondary" href="/dashboard">
+                  <span>Alerts</span>
+                  <strong>Go to alerts</strong>
                 </Link>
+              </div>
+              <div className="profile-chip-row">
+                <span className="pill">Profile details</span>
+                <span className="pill">Saved alerts</span>
+                <span className="pill">Rate history</span>
               </div>
               <p className="support-copy">
                 Use alerts to manage saved targets, review history, and recent provider

@@ -113,9 +113,33 @@ export function SiteFooter() {
         </div>
 
         <div className="site-footer-links">
-          <Link href="/compare">Live comparison</Link>
-          <Link href="/dashboard">Alerts and history</Link>
-          <Link href="/profile">Profile</Link>
+          <Link href="/compare">
+            <span className="site-footer-link-icon" aria-hidden="true">
+              <FooterIcon kind="compare" />
+            </span>
+            <div className="site-footer-link-copy">
+              <strong>Compare</strong>
+              <span>Live payout view</span>
+            </div>
+          </Link>
+          <Link href="/dashboard">
+            <span className="site-footer-link-icon" aria-hidden="true">
+              <FooterIcon kind="alerts" />
+            </span>
+            <div className="site-footer-link-copy">
+              <strong>History</strong>
+              <span>Alerts and saved checks</span>
+            </div>
+          </Link>
+          <Link href="/profile">
+            <span className="site-footer-link-icon" aria-hidden="true">
+              <FooterIcon kind="account" />
+            </span>
+            <div className="site-footer-link-copy">
+              <strong>Profile</strong>
+              <span>Account details</span>
+            </div>
+          </Link>
         </div>
       </div>
 
