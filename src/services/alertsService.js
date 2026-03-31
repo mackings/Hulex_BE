@@ -3,6 +3,7 @@ const AlertNotification = require('../models/alertNotificationModel');
 const User = require('../models/userModel');
 const { getWiseComparison, getSendWaveRates } = require('../helpers/wiseApi');
 const { formatProviderData, getCountryIso2ByCurrency } = require('../helpers/currencyHelper');
+const { sendPushToUser } = require('./pushService');
 
 function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency) {
   const rate = parseFloat(data?.effectiveExchangeRate || data?.baseExchangeRate || 0);
@@ -70,13 +71,12 @@ function pickBestProvider(providers, providerType) {
 }
 
 async function sendPushNotification(user, message) {
-  if (!user?.pushTokens?.length) {
-    return { success: false, reason: 'No push tokens registered' };
-  }
-
-  // Placeholder for integration with push provider (FCM/APNs).
-  console.log('Push notification:', { userId: user._id, message });
-  return { success: true };
+  return sendPushToUser(user, {
+    title: 'Rate Alert',
+    body: message,
+    data: { type: 'rate_alert' },
+    androidChannelId: 'rate_alerts'
+  });
 }
 
 async function runAlertCheckForAlert(alert) {

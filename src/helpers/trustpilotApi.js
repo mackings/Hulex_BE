@@ -11,7 +11,7 @@ const RAPIDAPI_KEY = process.env.TRUSTPILOT_RAPIDAPI_KEY;
 /**
  * Fetch company reviews from Trustpilot
  * @param {Object} options - Query options
- * @param {string} options.company_domain - Company domain (e.g., 'lemfi.com')
+ * @param {string} options.company_domain - Company domain (e.g., 'sendwave.com')
  * @param {string} options.locale - Locale (default: 'en-US')
  * @param {string} options.date_posted - Date filter ('any', 'last_week', 'last_month', 'last_year')
  * @param {number} options.page - Page number (default: 1)

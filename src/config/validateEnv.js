@@ -25,7 +25,16 @@ const optionalEnvVars = [
   'REVOLUT_ENV',
   'REVOLUT_REDIRECT_DOMAIN',
   'ALERT_CRON',
-  'ALERT_CRON_TZ'
+  'ALERT_CRON_TZ',
+  'HOURLY_RATES_CRON',
+  'HOURLY_RATES_CRON_TZ',
+  'HOURLY_RATE_PAIRS',
+  'HOURLY_RATE_AMOUNT',
+  'FIREBASE_SERVICE_ACCOUNT_JSON',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
+  'GOOGLE_APPLICATION_CREDENTIALS'
 ];
 
 function validateEnvironment() {
@@ -66,6 +75,21 @@ function validateEnvironment() {
     if (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('localhost')) {
       warnings.push('FRONTEND_URL appears to use localhost in production environment');
     }
+  }
+
+  const hasFirebaseJson = !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const hasFirebaseTriplet = !!(
+    process.env.FIREBASE_PROJECT_ID &&
+    process.env.FIREBASE_CLIENT_EMAIL &&
+    process.env.FIREBASE_PRIVATE_KEY
+  );
+  const hasGoogleCredPath = !!process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const hasFirebaseConfig = hasFirebaseJson || hasFirebaseTriplet || hasGoogleCredPath;
+
+  if (!hasFirebaseConfig) {
+    warnings.push(
+      'Firebase push is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY.'
+    );
   }
 
   // Display warnings

@@ -523,14 +523,14 @@ Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 **Query Parameters:**
-- `company_domain` (required) - Company domain (e.g., "lemfi.com")
+- `company_domain` (required) - Company domain (e.g., "sendwave.com")
 - `locale` (optional) - Locale code (default: "en-US")
 - `date_posted` (optional) - Filter: "any", "last_week", "last_month", "last_year" (default: "any")
 - `page` (optional) - Page number (default: 1)
 
 **Example Request:**
 ```
-GET /trustpilot/reviews?company_domain=lemfi.com&page=1&date_posted=any
+GET /trustpilot/reviews?company_domain=sendwave.com&page=1&date_posted=any
 ```
 
 **Success Response:** `200 OK`
@@ -576,11 +576,11 @@ GET /trustpilot/reviews?company_domain=lemfi.com&page=1&date_posted=any
 **Authentication:** Required (Bearer Token)
 
 **Query Parameters:**
-- `company_domain` (required) - Company domain (e.g., "lemfi.com")
+- `company_domain` (required) - Company domain (e.g., "sendwave.com")
 
 **Example Request:**
 ```
-GET /trustpilot/company?company_domain=lemfi.com
+GET /trustpilot/company?company_domain=sendwave.com
 ```
 
 **Success Response:** `200 OK`
@@ -589,7 +589,7 @@ GET /trustpilot/company?company_domain=lemfi.com
   "success": true,
   "data": {
     "company_name": "Lemfi",
-    "company_domain": "lemfi.com",
+    "company_domain": "sendwave.com",
     "trust_score": 4.5,
     "total_reviews": 1234
   }
@@ -611,7 +611,7 @@ GET /trustpilot/company?company_domain=lemfi.com
 
 **Example Request:**
 ```
-GET /trustpilot/stats?company_domain=lemfi.com
+GET /trustpilot/stats?company_domain=sendwave.com
 ```
 
 **Success Response:** `200 OK`
@@ -849,6 +849,8 @@ GET /currencies/EUR/countries
 
 > Alerts are checked by a cron job (default: `0 9,13,20 * * *` in `UTC`).  
 > Configure with `ALERT_CRON` and `ALERT_CRON_TZ`.
+> Hourly backend push digest is enabled by default (`0 * * * *`) and can be configured via:
+> `HOURLY_RATES_CRON`, `HOURLY_RATES_CRON_TZ`, `HOURLY_RATE_PAIRS`, `HOURLY_RATE_AMOUNT`.
 
 ### 1. Create Alert
 
@@ -984,6 +986,31 @@ GET /currencies/EUR/countries
   "message": "Push token registered"
 }
 ```
+
+### 9. Firebase Push Setup (Backend)
+
+To actually deliver push notifications (not just store device tokens), configure Firebase Admin credentials on the backend.
+
+Use one of the following approaches:
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON` as a full JSON string for the service account
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+- `GOOGLE_APPLICATION_CREDENTIALS` path to a service account JSON file
+
+Example `.env` values:
+
+```env
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxx@your-project-id.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+Notes:
+
+- Device tokens are saved via `POST /alerts/device-token`.
+- Alert-triggered pushes are sent by the alerts service.
+- Hourly rate digest pushes are sent to all users with registered tokens.
+- Invalid FCM tokens are automatically removed from user records.
 
 ---
 
@@ -1411,7 +1438,7 @@ void main() async {
 
   // 6. Get Trustpilot reviews
   final reviews = await api.getCompanyReviews(
-    companyDomain: 'lemfi.com',
+    companyDomain: 'sendwave.com',
     page: 1,
   );
   print('Reviews: ${reviews['total']} reviews found');
@@ -1612,7 +1639,7 @@ curl -X POST http://localhost:1000/login \
 curl -X GET 'http://localhost:1000/rates/compare?fromCurrency=GBP&toCurrency=EUR&amount=100'
 
 # Get reviews (with auth)
-curl -X GET 'http://localhost:1000/trustpilot/reviews?company_domain=lemfi.com' \
+curl -X GET 'http://localhost:1000/trustpilot/reviews?company_domain=sendwave.com' \
   -H 'Authorization: Bearer YOUR_TOKEN'
 ```
 

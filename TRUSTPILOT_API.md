@@ -28,7 +28,7 @@ All Trustpilot endpoints require authentication (JWT token).
 **Authentication:** Required (Bearer Token)
 
 **Query Parameters:**
-- `company_domain` (required) - Company domain (e.g., "lemfi.com")
+- `company_domain` (required) - Company domain (e.g., "sendwave.com")
 - `locale` (optional) - Locale code (default: "en-US")
 - `date_posted` (optional) - Date filter: "any", "last_week", "last_month", "last_year" (default: "any")
 - `page` (optional) - Page number (default: 1)
@@ -36,7 +36,7 @@ All Trustpilot endpoints require authentication (JWT token).
 **Example Request:**
 ```bash
 curl --request GET \
-  --url 'http://localhost:1000/trustpilot/reviews?company_domain=lemfi.com&date_posted=any&locale=en-US&page=1' \
+  --url 'http://localhost:1000/trustpilot/reviews?company_domain=sendwave.com&date_posted=any&locale=en-US&page=1' \
   --header 'Authorization: Bearer YOUR_JWT_TOKEN'
 ```
 
@@ -81,12 +81,12 @@ curl --request GET \
 **Authentication:** Required (Bearer Token)
 
 **Query Parameters:**
-- `company_domain` (required) - Company domain (e.g., "lemfi.com")
+- `company_domain` (required) - Company domain (e.g., "sendwave.com")
 
 **Example Request:**
 ```bash
 curl --request GET \
-  --url 'http://localhost:1000/trustpilot/company?company_domain=lemfi.com' \
+  --url 'http://localhost:1000/trustpilot/company?company_domain=sendwave.com' \
   --header 'Authorization: Bearer YOUR_JWT_TOKEN'
 ```
 
@@ -96,7 +96,7 @@ curl --request GET \
   "success": true,
   "data": {
     "company_name": "Lemfi",
-    "company_domain": "lemfi.com",
+    "company_domain": "sendwave.com",
     "trust_score": 4.5,
     "total_reviews": 1234,
     ...
@@ -113,12 +113,12 @@ curl --request GET \
 **Authentication:** Required (Bearer Token)
 
 **Query Parameters:**
-- `company_domain` (required) - Company domain (e.g., "lemfi.com")
+- `company_domain` (required) - Company domain (e.g., "sendwave.com")
 
 **Example Request:**
 ```bash
 curl --request GET \
-  --url 'http://localhost:1000/trustpilot/stats?company_domain=lemfi.com' \
+  --url 'http://localhost:1000/trustpilot/stats?company_domain=sendwave.com' \
   --header 'Authorization: Bearer YOUR_JWT_TOKEN'
 ```
 
@@ -253,7 +253,7 @@ const fetchReviews = async (companyDomain) => {
 };
 
 // Usage
-fetchReviews('lemfi.com');
+fetchReviews('sendwave.com');
 ```
 
 ---
@@ -276,7 +276,7 @@ curl --request POST \
 ### Step 2: Use the token to fetch reviews
 ```bash
 curl --request GET \
-  --url 'http://localhost:1000/trustpilot/reviews?company_domain=lemfi.com' \
+  --url 'http://localhost:1000/trustpilot/reviews?company_domain=sendwave.com' \
   --header 'Authorization: Bearer YOUR_TOKEN_HERE'
 ```
 

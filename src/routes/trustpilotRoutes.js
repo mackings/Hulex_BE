@@ -8,6 +8,12 @@ const { authMiddleware } = require('../helpers/authService');
 // TRUSTPILOT ROUTES
 // ======================
 
+// Get company reviews (Public)
+router.get('/public/trustpilot/reviews', getReviews);
+
+// Get review statistics (Public)
+router.get('/public/trustpilot/stats', getStats);
+
 // Get company reviews (Protected - requires authentication)
 router.get('/trustpilot/reviews', authMiddleware, getReviews);
 

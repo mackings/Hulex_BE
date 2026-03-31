@@ -10,6 +10,7 @@ const {getRevolutRates } = require("../Utils/revolut")
 
 
 const { getWiseComparison, getWiseRates ,getSendWaveRates, } = require('../../helpers/wiseApi');
+const { getTaptapSendRates } = require("../../helpers/taptapSendApi");
 const {
   validateCurrency,
   getCurrencyDetails,
@@ -44,8 +45,25 @@ function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency
   };
 }
 
-
-
+function formatTaptapSendProvider(data, sendAmount) {
+  return {
+    id: "taptapsend",
+    name: "Taptap Send",
+    alias: "taptapsend",
+    type: "remittance",
+    logo: null,
+    rate: data.rate || 0,
+    fee: data.fee || 0,
+    receivedAmount: data.receivedAmount || 0,
+    sendAmount: sendAmount,
+    markup: null,
+    deliveryTime: null,
+    isMidMarketRate: false,
+    sourceCountry: data.sourceCountry,
+    targetCountry: data.targetCountry,
+    dateCollected: data.dateCollected || new Date().toISOString()
+  };
+}
 
 exports.GetRatesComparison = async (req, res) => {
   try {
@@ -53,7 +71,9 @@ exports.GetRatesComparison = async (req, res) => {
       fromCurrency,
       toCurrency,
       amount,
-      providerTypes
+      providerTypes,
+      fromCountry,
+      toCountry
     } = req.query;
 
     // Validate required parameters
@@ -116,30 +136,41 @@ exports.GetRatesComparison = async (req, res) => {
     // Format provider data
     let providers = formatProviderData(comparisonData.providers);
 
-    // Also fetch SendWave rates and normalize to provider shape
-    let sendWaveProvider = null;
-    try {
-      const sendCountryIso2 = getCountryIso2ByCurrency(sourceCurrency);
-      const receiveCountryIso2 = getCountryIso2ByCurrency(targetCurrency);
+    // Also fetch provider-specific public quote adapters and normalize them.
+    const sendCountryIso2 = fromCountry ? fromCountry.toUpperCase() : getCountryIso2ByCurrency(sourceCurrency);
+    const receiveCountryIso2 = toCountry ? toCountry.toUpperCase() : getCountryIso2ByCurrency(targetCurrency);
 
-      if (!sendCountryIso2 || !receiveCountryIso2) {
-        console.warn(`SendWave lookup skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`);
-      } else {
-        const sendWaveData = await getSendWaveRates(
+    if (!sendCountryIso2 || !receiveCountryIso2) {
+      console.warn(`Public quote adapters skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`);
+    } else {
+      const publicProviders = await Promise.all([
+        getSendWaveRates(
           sourceCurrency,
           targetCurrency,
           sendCountryIso2,
           receiveCountryIso2,
           sendAmount
-        );
-        sendWaveProvider = formatSendWaveProvider(sendWaveData, sendAmount, sourceCurrency, targetCurrency);
-      }
-    } catch (sendWaveErr) {
-      console.warn('SendWave fetch failed:', sendWaveErr.message);
-    }
+        )
+          .then((data) => formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency))
+          .catch((error) => {
+            console.warn("SendWave fetch failed:", error.message);
+            return null;
+          }),
+        getTaptapSendRates(
+          sourceCurrency,
+          targetCurrency,
+          sendCountryIso2,
+          receiveCountryIso2,
+          sendAmount
+        )
+          .then((data) => formatTaptapSendProvider(data, sendAmount))
+          .catch((error) => {
+            console.warn("Taptap Send fetch failed:", error.message);
+            return null;
+          })
+      ]);
 
-    if (sendWaveProvider) {
-      providers.push(sendWaveProvider);
+      providers.push(...publicProviders.filter(Boolean));
     }
 
     // Filter by provider type if specified
@@ -585,4 +616,72 @@ exports.GetPaysendRates = async (req, res) => {
             message: error.response?.data || error.message
         });
     }
+};
+
+exports.GetTaptapSendRates = async (req, res) => {
+  try {
+    const {
+      from = "GBP",
+      to = "NGN",
+      amount = 100,
+      fromCountry,
+      toCountry
+    } = req.query;
+
+    const sendCurrency = from.toUpperCase();
+    const receiveCurrency = to.toUpperCase();
+    const sendAmount = parseFloat(amount);
+
+    if (isNaN(sendAmount) || sendAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "amount must be a positive number"
+      });
+    }
+
+    const sourceDetails = getCurrencyDetails(sendCurrency);
+    const targetDetails = getCurrencyDetails(receiveCurrency);
+
+    if (!sourceDetails) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid currency: ${from}`
+      });
+    }
+
+    if (!targetDetails) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid currency: ${to}`
+      });
+    }
+
+    const sendCountryIso2 = fromCountry ? fromCountry.toUpperCase() : getCountryIso2ByCurrency(sendCurrency);
+    const receiveCountryIso2 = toCountry ? toCountry.toUpperCase() : getCountryIso2ByCurrency(receiveCurrency);
+
+    const rates = await getTaptapSendRates(
+      sendCurrency,
+      receiveCurrency,
+      sendCountryIso2,
+      receiveCountryIso2,
+      sendAmount
+    );
+
+    res.json({
+      success: true,
+      from: sourceDetails,
+      to: targetDetails,
+      amount: sendAmount,
+      sendCountry: sendCountryIso2,
+      receiveCountry: receiveCountryIso2,
+      rates
+    });
+  } catch (error) {
+    console.error("Taptap Send API Error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch Taptap Send rates",
+      message: error.message
+    });
+  }
 };
