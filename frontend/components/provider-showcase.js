@@ -76,6 +76,13 @@ export function ProviderShowcase() {
 
   const slideItems = useMemo(() => providers.slice(0, 8), [providers]);
   const visibleCount = slideItems.length;
+  const bestReceivedAmount = useMemo(() => {
+    if (!slideItems.length) {
+      return 0;
+    }
+
+    return Math.max(...slideItems.map((provider) => Number(provider.receivedAmount || 0)));
+  }, [slideItems]);
 
   useEffect(() => {
     if (visibleCount <= 1) {
@@ -132,6 +139,11 @@ export function ProviderShowcase() {
               style={{ transform: `translateX(-${activeIndex * 100}%)` }}
             >
               {slideItems.map((provider, index) => {
+                const payoutGap = Math.max(
+                  bestReceivedAmount - Number(provider.receivedAmount || 0),
+                  0
+                );
+                const isTopPayout = payoutGap < 0.01;
                 const content = (
                   <>
                     <div className="provider-showcase-topline">
@@ -147,13 +159,43 @@ export function ProviderShowcase() {
                       </span>
                     </div>
 
-                    <div className="provider-showcase-amount">
-                      {formatMoney(provider.receivedAmount, defaultQuery.toCurrency)}
+                    <div className="provider-showcase-amount-block">
+                      <span className="label">Recipient gets</span>
+                      <div className="provider-showcase-amount">
+                        {formatMoney(provider.receivedAmount, defaultQuery.toCurrency)}
+                      </div>
+                      <p className="provider-showcase-summary">
+                        Based on sending {formatMoney(defaultQuery.amount, defaultQuery.fromCurrency)}
+                        {" "}right now.
+                      </p>
+                    </div>
+
+                    <div className="provider-showcase-stat-grid">
+                      <article className="provider-showcase-stat">
+                        <span>Exchange rate</span>
+                        <strong>{formatNumber(provider.rate)}</strong>
+                      </article>
+                      <article className="provider-showcase-stat">
+                        <span>Transfer fee</span>
+                        <strong>{formatMoney(provider.fee, defaultQuery.fromCurrency)}</strong>
+                      </article>
+                      <article className="provider-showcase-stat">
+                        <span>Gap to best</span>
+                        <strong>
+                          {isTopPayout
+                            ? "Top route"
+                            : formatMoney(payoutGap, defaultQuery.toCurrency)}
+                        </strong>
+                      </article>
                     </div>
 
                     <div className="provider-showcase-meta">
-                      <span>Rate {formatNumber(provider.rate)}</span>
-                      <span>Fee {formatMoney(provider.fee, defaultQuery.fromCurrency)}</span>
+                      <span>
+                        {isTopPayout
+                          ? "Highest payout in this live sample."
+                          : `${formatMoney(payoutGap, defaultQuery.toCurrency)} behind the best live route.`}
+                      </span>
+                      <span>Open provider reviews</span>
                     </div>
                   </>
                 );

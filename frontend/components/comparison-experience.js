@@ -13,6 +13,10 @@ const defaultForm = {
   amount: "100"
 };
 
+function getPresetKey(preset) {
+  return `${preset.fromCountry}-${preset.toCountry}`;
+}
+
 function getProviderInitials(name) {
   return String(name || "HX")
     .split(" ")
@@ -179,7 +183,7 @@ function ProviderMark({ provider }) {
   return <div className="provider-brand provider-brand-fallback">{initials}</div>;
 }
 
-export function ComparisonExperience({ hero = false }) {
+export function ComparisonExperience({ hero = false, presets = [] }) {
   const { isAuthenticated } = useAuth();
   const [countries, setCountries] = useState([]);
   const [form, setForm] = useState(defaultForm);
@@ -299,6 +303,14 @@ export function ComparisonExperience({ hero = false }) {
   );
   const topProviders = useMemo(() => allProviders.slice(0, 3), [allProviders]);
   const heroProviders = useMemo(() => allProviders.slice(0, 2), [allProviders]);
+  const activePresetKey = useMemo(() => {
+    const matchedPreset = presets.find(
+      (preset) =>
+        preset.fromCountry === form.fromCountry && preset.toCountry === form.toCountry
+    );
+
+    return matchedPreset ? getPresetKey(matchedPreset) : "";
+  }, [form.fromCountry, form.toCountry, presets]);
 
   const handleCountrySelect = (side, country) => {
     setForm((current) => ({
@@ -306,6 +318,17 @@ export function ComparisonExperience({ hero = false }) {
       [side === "from" ? "fromCountry" : "toCountry"]: country.code
     }));
     setPickerSearch((current) => ({ ...current, [side]: "" }));
+    setActivePicker(null);
+  };
+
+  const handlePresetSelect = (preset) => {
+    setForm((current) => ({
+      ...current,
+      fromCountry: preset.fromCountry,
+      toCountry: preset.toCountry,
+      amount: preset.amount || current.amount
+    }));
+    setPickerSearch({ from: "", to: "" });
     setActivePicker(null);
   };
 
@@ -326,6 +349,35 @@ export function ComparisonExperience({ hero = false }) {
             </span>
           </div>
         </div>
+
+        {presets.length ? (
+          <div className="route-preset-block">
+            <div className="route-preset-copy">
+              <span className="label">Popular routes</span>
+              <p>Tap a route to load the calculator instantly.</p>
+            </div>
+
+            <div className="route-preset-row">
+              {presets.map((preset) => {
+                const presetKey = getPresetKey(preset);
+
+                return (
+                  <button
+                    className={`route-preset-button${
+                      activePresetKey === presetKey ? " route-preset-button-active" : ""
+                    }`}
+                    key={presetKey}
+                    onClick={() => handlePresetSelect(preset)}
+                    type="button"
+                  >
+                    <strong>{preset.label}</strong>
+                    <span>{preset.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="comparison-country-row">
           <CountryPicker
@@ -438,10 +490,10 @@ export function ComparisonExperience({ hero = false }) {
           <div className="comparison-loading-state">No comparison data yet.</div>
         )}
 
-        <div className="panel-actions">
-          <Link className="button button-primary" href={isAuthenticated ? "/dashboard" : "/auth/register"}>
-            {isAuthenticated ? "Open dashboard" : "Create account for alerts"}
-          </Link>
+        <div className="hero-arrow-strip" aria-hidden="true">
+          <span>{">>>>>>"}</span>
+          <span>{">>>>>>"}</span>
+          <span>{">>>>>>"}</span>
         </div>
       </div>
     );

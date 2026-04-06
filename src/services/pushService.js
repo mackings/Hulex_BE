@@ -124,7 +124,24 @@ async function sendFcmToUser(user, payload) {
 }
 
 async function sendWebPushToUser(user, payload) {
-  if (!user?.webPushSubscriptions?.length) {
+  const removeInvalidSubscriptions = async (invalidEndpoints) => {
+    if (!invalidEndpoints.length || !user?._id) {
+      return;
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      { $pull: { webPushSubscriptions: { endpoint: { $in: invalidEndpoints } } } }
+    );
+  };
+
+  return sendWebPushToSubscriptions(user?.webPushSubscriptions, payload, {
+    removeInvalidSubscriptions
+  });
+}
+
+async function sendWebPushToSubscriptions(subscriptions, payload, options = {}) {
+  if (!subscriptions?.length) {
     return { success: false, reason: 'No web push subscriptions registered' };
   }
 
@@ -138,7 +155,7 @@ async function sendWebPushToUser(user, payload) {
   let failedCount = 0;
   const uniqueSubscriptions = new Map();
 
-  for (const subscription of user.webPushSubscriptions) {
+  for (const subscription of subscriptions) {
     if (subscription?.endpoint) {
       uniqueSubscriptions.set(subscription.endpoint, subscription);
     }
@@ -158,11 +175,8 @@ async function sendWebPushToUser(user, payload) {
     }
   }
 
-  if (invalidEndpoints.length) {
-    await User.updateOne(
-      { _id: user._id },
-      { $pull: { webPushSubscriptions: { endpoint: { $in: invalidEndpoints } } } }
-    );
+  if (invalidEndpoints.length && typeof options.removeInvalidSubscriptions === 'function') {
+    await options.removeInvalidSubscriptions(invalidEndpoints);
   }
 
   return {
@@ -191,5 +205,6 @@ async function sendPushToUser(user, payload) {
 }
 
 module.exports = {
-  sendPushToUser
+  sendPushToUser,
+  sendWebPushToSubscriptions
 };

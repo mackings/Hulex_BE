@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { getNotifications } from "@/lib/api";
+import { compareRates, getNotifications } from "@/lib/api";
 import {
   BROWSER_NOTIFICATIONS_EVENT,
   browserNotificationsSupported,
@@ -16,7 +16,16 @@ import {
 import { getProviderMeta } from "@/lib/providers";
 
 const POLL_INTERVAL_MS = 30_000;
+const DIGEST_INTERVAL_MS = 5 * 60 * 60 * 1000;
 const RECENT_BOOTSTRAP_WINDOW_MS = 10 * 60 * 1000;
+const LOCAL_DIGEST_LAST_SHOWN_KEY = "hulex-browser-notifications-last-digest-at";
+const DIGEST_DEFAULT_QUERY = {
+  fromCurrency: "USD",
+  toCurrency: "NGN",
+  fromCountry: "US",
+  toCountry: "NG",
+  amount: "100"
+};
 
 function getNotificationIcon(item) {
   const providerMeta = getProviderMeta(item?.provider);
@@ -45,6 +54,57 @@ function showBrowserNotification(item) {
   notification.onclick = () => {
     window.focus();
     window.location.assign(item?.kind === "rate_digest" ? "/compare" : "/dashboard");
+    notification.close();
+  };
+}
+
+function getLastLocalDigestTimestamp() {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  return Number(window.localStorage.getItem(LOCAL_DIGEST_LAST_SHOWN_KEY) || 0);
+}
+
+function setLastLocalDigestTimestamp(value) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_DIGEST_LAST_SHOWN_KEY, String(value));
+}
+
+function buildLocalDigestMessage(result) {
+  const bestProvider = result?.stats?.bestRate;
+  const runnerUp = (result?.providers || [])[1] || null;
+  const bestAmount = Number(bestProvider?.receivedAmount || 0);
+  const runnerUpAmount = Number(runnerUp?.receivedAmount || 0);
+  const leadAmount = Math.max(bestAmount - runnerUpAmount, 0);
+  const bestName = bestProvider?.name || "Top provider";
+  const targetCode = result?.query?.target?.code || DIGEST_DEFAULT_QUERY.toCurrency;
+
+  if (!runnerUp || !leadAmount) {
+    return `${bestName} currently leads USD to NGN with the strongest payout.`;
+  }
+
+  return `${bestName} leads USD to NGN by ${leadAmount.toLocaleString("en-US", {
+    maximumFractionDigits: 0
+  })} ${targetCode} right now.`;
+}
+
+function showLocalDigestNotification(result) {
+  const bestProvider = result?.stats?.bestRate;
+  const title = "Latest 5-hour rate update";
+  const message = buildLocalDigestMessage(result);
+  const notification = new window.Notification(title, {
+    body: message,
+    icon: getNotificationIcon({ provider: bestProvider }),
+    tag: "hulex-local-rate-digest"
+  });
+
+  notification.onclick = () => {
+    window.focus();
+    window.location.assign("/compare");
     notification.close();
   };
 }
@@ -114,9 +174,7 @@ export function BrowserNotificationManager() {
   useEffect(() => {
     if (
       !isHydrated ||
-      !isAuthenticated ||
       !enabled ||
-      mode === "web-push" ||
       permission !== "granted" ||
       !browserNotificationsSupported()
     ) {
@@ -126,10 +184,16 @@ export function BrowserNotificationManager() {
     let isCancelled = false;
 
     const pollNotifications = async () => {
+      if (!isAuthenticated) {
+        return;
+      }
+
       try {
         const data = await getNotifications();
         const items = data.items || [];
-        const freshItems = getFreshNotifications(items, getLastSeenBrowserNotificationId());
+        const freshItems = getFreshNotifications(items, getLastSeenBrowserNotificationId()).filter(
+          (item) => mode !== "web-push" || item?.deliveryStatus !== "sent"
+        );
 
         if (isCancelled || !freshItems.length) {
           return;
@@ -151,8 +215,51 @@ export function BrowserNotificationManager() {
   }, [enabled, isAuthenticated, isHydrated, mode, permission]);
 
   useEffect(() => {
+    if (
+      !isHydrated ||
+      !enabled ||
+      permission !== "granted" ||
+      !browserNotificationsSupported()
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const maybeShowDigest = async () => {
+      const now = Date.now();
+      const lastShownAt = getLastLocalDigestTimestamp();
+
+      if (lastShownAt && now - lastShownAt < DIGEST_INTERVAL_MS) {
+        return;
+      }
+
+      try {
+        const result = await compareRates(DIGEST_DEFAULT_QUERY);
+        if (cancelled || !result?.stats?.bestRate) {
+          return;
+        }
+
+        showLocalDigestNotification(result);
+        setLastLocalDigestTimestamp(now);
+      } catch {
+        // Fail quietly and retry on next interval.
+      }
+    };
+
+    maybeShowDigest();
+    const intervalId = window.setInterval(maybeShowDigest, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [enabled, isHydrated, permission]);
+
+  useEffect(() => {
     if (!enabled) {
       clearLastSeenBrowserNotificationId();
+      setLastLocalDigestTimestamp(0);
     }
   }, [enabled]);
 

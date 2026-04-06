@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { authMiddleware } = require('../helpers/authService');
+const { authMiddleware, optionalAuth } = require('../helpers/authService');
 const {
   CreateAlert,
   GetAlerts,
@@ -21,8 +21,8 @@ router.post('/alerts', authMiddleware, CreateAlert);
 router.get('/alerts', authMiddleware, GetAlerts);
 router.get('/alerts/notifications', authMiddleware, GetNotifications);
 router.post('/alerts/device-token', authMiddleware, RegisterPushToken);
-router.post('/alerts/web-push-subscription', authMiddleware, RegisterWebPushSubscription);
-router.delete('/alerts/web-push-subscription', authMiddleware, DeleteWebPushSubscription);
+router.post('/alerts/web-push-subscription', optionalAuth, RegisterWebPushSubscription);
+router.delete('/alerts/web-push-subscription', optionalAuth, DeleteWebPushSubscription);
 router.post('/alerts/run-check', authMiddleware, RunAlertCheck);
 router.get('/alerts/:id', authMiddleware, GetAlert);
 router.patch('/alerts/:id', authMiddleware, UpdateAlert);

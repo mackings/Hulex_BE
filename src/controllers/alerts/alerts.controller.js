@@ -1,9 +1,40 @@
 const Alert = require('../../models/alertModel');
 const AlertNotification = require('../../models/alertNotificationModel');
+const AnonymousWebPushSubscription = require('../../models/anonymousWebPushSubscriptionModel');
 const User = require('../../models/userModel');
 const { runAlertsCheck } = require('../../services/alertsService');
 const { validateCurrency } = require('../../helpers/currencyHelper');
 const { getWebPushPublicConfig } = require('../../config/webPush');
+
+function normalizeWebPushSubscription(subscription, userAgent) {
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return {
+      error: 'A valid web push subscription is required'
+    };
+  }
+
+  let endpoint;
+  try {
+    endpoint = new URL(subscription.endpoint).toString();
+  } catch {
+    return {
+      error: 'Invalid subscription endpoint'
+    };
+  }
+
+  return {
+    endpoint,
+    subscriptionRecord: {
+      endpoint,
+      expirationTime: subscription.expirationTime || null,
+      keys: {
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      },
+      userAgent: String(userAgent || '')
+    }
+  };
+}
 
 exports.CreateAlert = async (req, res) => {
   try {
@@ -211,52 +242,55 @@ exports.GetWebPushConfig = async (_req, res) => {
 exports.RegisterWebPushSubscription = async (req, res) => {
   try {
     const { subscription } = req.body;
+    const { endpoint, subscriptionRecord, error } = normalizeWebPushSubscription(
+      subscription,
+      req.headers['user-agent']
+    );
 
-    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
-      return res.status(400).json({
-        success: false,
-        error: 'A valid web push subscription is required'
+    if (error) {
+      return res.status(400).json({ success: false, error });
+    }
+
+    if (req.user?._id) {
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      const existing = user.webPushSubscriptions.find((item) => item.endpoint === endpoint);
+      if (!existing) {
+        user.webPushSubscriptions.push(subscriptionRecord);
+      } else {
+        existing.expirationTime = subscriptionRecord.expirationTime;
+        existing.keys = subscriptionRecord.keys;
+        existing.userAgent = subscriptionRecord.userAgent || existing.userAgent || '';
+      }
+
+      await user.save();
+      await AnonymousWebPushSubscription.deleteOne({ endpoint });
+
+      return res.json({
+        success: true,
+        scope: 'user',
+        message: 'Web push subscription registered',
+        subscriptions: user.webPushSubscriptions.length
       });
     }
 
-    let endpoint;
-    try {
-      endpoint = new URL(subscription.endpoint).toString();
-    } catch {
-      return res.status(400).json({ success: false, error: 'Invalid subscription endpoint' });
-    }
-
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const existing = user.webPushSubscriptions.find((item) => item.endpoint === endpoint);
-    if (!existing) {
-      user.webPushSubscriptions.push({
-        endpoint,
-        expirationTime: subscription.expirationTime || null,
-        keys: {
-          p256dh: subscription.keys.p256dh,
-          auth: subscription.keys.auth
-        },
-        userAgent: String(req.headers['user-agent'] || '')
-      });
-    } else {
-      existing.expirationTime = subscription.expirationTime || null;
-      existing.keys = {
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth
-      };
-      existing.userAgent = String(req.headers['user-agent'] || existing.userAgent || '');
-    }
-
-    await user.save();
+    await AnonymousWebPushSubscription.findOneAndUpdate(
+      { endpoint },
+      { $set: subscriptionRecord },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
     res.json({
       success: true,
-      message: 'Web push subscription registered',
-      subscriptions: user.webPushSubscriptions.length
+      scope: 'anonymous',
+      message: 'Anonymous web push subscription registered'
     });
   } catch (err) {
     console.error('RegisterWebPushSubscription error:', err);
@@ -273,20 +307,24 @@ exports.DeleteWebPushSubscription = async (req, res) => {
     }
 
     const normalizedEndpoint = new URL(endpoint).toString();
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $pull: { webPushSubscriptions: { endpoint: normalizedEndpoint } } },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
+    const [userResult, anonymousResult] = await Promise.all([
+      User.updateMany(
+        { 'webPushSubscriptions.endpoint': normalizedEndpoint },
+        { $pull: { webPushSubscriptions: { endpoint: normalizedEndpoint } } }
+      ),
+      AnonymousWebPushSubscription.deleteOne({ endpoint: normalizedEndpoint })
+    ]);
+    const currentUser = req.user?._id
+      ? await User.findById(req.user._id).select('webPushSubscriptions').lean()
+      : null;
 
     res.json({
       success: true,
       message: 'Web push subscription removed',
-      subscriptions: user.webPushSubscriptions.length
+      scope: req.user?._id ? 'user' : 'anonymous',
+      subscriptions: currentUser?.webPushSubscriptions?.length || 0,
+      removedUsers: userResult.modifiedCount || 0,
+      removedAnonymous: anonymousResult.deletedCount || 0
     });
   } catch (err) {
     console.error('DeleteWebPushSubscription error:', err);

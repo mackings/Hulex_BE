@@ -17,6 +17,7 @@ export function SiteHeader() {
   const { isAuthenticated, user, clearSession } = useAuth();
   const alertsHref = isAuthenticated ? "/dashboard" : "/auth/register";
   const profileHref = isAuthenticated ? "/profile" : "/auth";
+  const isHomePage = pathname === "/";
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/compare", label: "Compare" },
@@ -55,8 +56,13 @@ export function SiteHeader() {
                 </button>
               </>
             ) : (
-              <Link className="button button-primary button-small nav-cta-desktop" href="/auth/register">
-                Get started
+              <Link
+                className={`button button-small nav-cta-desktop ${
+                  isHomePage ? "button-ghost" : "button-primary"
+                }`}
+                href={isHomePage ? "/auth" : "/auth/register"}
+              >
+                {isHomePage ? "Sign in" : "Get started"}
               </Link>
             )}
           </div>

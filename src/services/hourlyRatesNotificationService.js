@@ -1,7 +1,8 @@
 const User = require('../models/userModel');
 const AlertNotification = require('../models/alertNotificationModel');
+const AnonymousWebPushSubscription = require('../models/anonymousWebPushSubscriptionModel');
 const { fetchComparableProviders } = require('../helpers/providerComparison');
-const { sendPushToUser } = require('./pushService');
+const { sendPushToUser, sendWebPushToSubscriptions } = require('./pushService');
 
 function parsePairs(rawPairs) {
   return rawPairs
@@ -100,12 +101,21 @@ async function runHourlyRatesDigest() {
   const users = await User.find({ isVerified: true })
     .select('_id pushTokens webPushSubscriptions')
     .lean();
+  const seenWebPushEndpoints = new Set();
 
   let createdUsers = 0;
   let sentUsers = 0;
   let failedUsers = 0;
+  let sentAnonymous = 0;
+  let failedAnonymous = 0;
 
   for (const user of users) {
+    for (const subscription of user.webPushSubscriptions || []) {
+      if (subscription?.endpoint) {
+        seenWebPushEndpoints.add(subscription.endpoint);
+      }
+    }
+
     const notification = await AlertNotification.create({
       userId: user._id,
       alertId: null,
@@ -143,10 +153,43 @@ async function runHourlyRatesDigest() {
     else failedUsers += 1;
   }
 
+  const anonymousSubscriptions = await AnonymousWebPushSubscription.find().lean();
+  const deliverableAnonymousSubscriptions = anonymousSubscriptions.filter(
+    (subscription) => subscription?.endpoint && !seenWebPushEndpoints.has(subscription.endpoint)
+  );
+
+  if (deliverableAnonymousSubscriptions.length) {
+    const anonymousResult = await sendWebPushToSubscriptions(deliverableAnonymousSubscriptions, {
+      title,
+      body,
+      provider: highlight.bestProvider,
+      tag: 'hulex-rate-digest',
+      url: '/compare',
+      data: {
+        type: 'rate_digest',
+        provider: highlight.bestProvider.alias || highlight.bestProvider.name,
+        fromCurrency: highlight.pair.from,
+        toCurrency: highlight.pair.to
+      },
+      androidChannelId: 'rate_alerts'
+    }, {
+      removeInvalidSubscriptions: async (invalidEndpoints) => {
+        await AnonymousWebPushSubscription.deleteMany({
+          endpoint: { $in: invalidEndpoints }
+        });
+      }
+    });
+
+    sentAnonymous = anonymousResult.sentCount || 0;
+    failedAnonymous = anonymousResult.failedCount || 0;
+  }
+
   return {
     createdUsers,
     sentUsers,
     failedUsers,
+    sentAnonymous,
+    failedAnonymous,
     skipped: false,
     pair: `${highlight.pair.from}-${highlight.pair.to}`,
     provider: highlight.bestProvider.name

@@ -1,8 +1,38 @@
 import Link from "next/link";
+import { BrowserAlertsInline } from "@/components/browser-alerts-inline";
 import { ComparisonExperience } from "@/components/comparison-experience";
 import { ProviderShowcase } from "@/components/provider-showcase";
 
-const corridorPills = ["USD to NGN", "GBP to GHS", "EUR to KES", "CAD to NGN"];
+const corridorPresets = [
+  {
+    label: "USD to NGN",
+    description: "US to Nigeria",
+    fromCountry: "US",
+    toCountry: "NG",
+    amount: "100"
+  },
+  {
+    label: "GBP to GHS",
+    description: "UK to Ghana",
+    fromCountry: "GB",
+    toCountry: "GH",
+    amount: "100"
+  },
+  {
+    label: "EUR to KES",
+    description: "Germany to Kenya",
+    fromCountry: "DE",
+    toCountry: "KE",
+    amount: "100"
+  },
+  {
+    label: "CAD to NGN",
+    description: "Canada to Nigeria",
+    fromCountry: "CA",
+    toCountry: "NG",
+    amount: "100"
+  }
+];
 
 const credibilityItems = [
   "Live provider ranking",
@@ -120,21 +150,19 @@ export default function HomePage() {
             recipient gets, and move with more confidence before you send money home.
           </p>
 
-          <div className="hero-actions">
-            <Link className="button button-primary" href="/compare">
-              Compare live rates
-            </Link>
-            <Link className="button button-secondary" href="/auth/register">
-              Create account
-            </Link>
-          </div>
+          <div className="hero-action-stack">
+            <div className="hero-actions">
+              <Link className="button button-primary hero-primary-button" href="/compare">
+                Compare rates now
+              </Link>
+            </div>
 
-          <div className="corridor-row">
-            {corridorPills.map((item) => (
-              <span className="corridor-pill" key={item}>
-                {item}
-              </span>
-            ))}
+            <Link className="hero-subtle-cta" href="/auth/register">
+              <strong>Sign up for alerts</strong>
+              <span>Track a route and get notified when the payout hits your target.</span>
+            </Link>
+
+            <BrowserAlertsInline />
           </div>
 
           <div className="credibility-row">
@@ -150,7 +178,7 @@ export default function HomePage() {
 
         <div className="hero-visual-column">
           <div className="hero-compare-wrap">
-            <ComparisonExperience hero />
+            <ComparisonExperience hero presets={corridorPresets} />
           </div>
         </div>
       </section>
@@ -208,8 +236,8 @@ export default function HomePage() {
           <Link className="button button-primary" href="/compare">
             Start comparing
           </Link>
-          <Link className="button button-secondary" href="/dashboard">
-            Open dashboard
+          <Link className="button button-secondary" href="/auth/register">
+            Sign up for alerts
           </Link>
         </div>
       </section>
