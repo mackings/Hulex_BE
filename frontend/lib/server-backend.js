@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const BACKEND_BASE_URL =
   process.env.HULEX_API_BASE_URL?.replace(/\/$/, "") ||
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "https://hulexbe.vercel.app";
+  "https://hulex-api.onrender.com";
 
 export const SESSION_COOKIE_NAME = "hulex_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
