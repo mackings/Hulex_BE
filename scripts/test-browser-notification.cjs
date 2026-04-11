@@ -170,7 +170,7 @@ async function main() {
     await page.close();
     page = null;
 
-    console.log('8. Running the real 5-hour digest service...');
+    console.log('8. Running the real rate digest service...');
     const digestRun = await runDigestForBrowserTest(userId);
     digestNotificationId = digestRun.notificationId;
 

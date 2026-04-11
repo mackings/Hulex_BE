@@ -95,7 +95,7 @@ async function runHourlyRatesDigest() {
     return { sentUsers: 0, failedUsers: 0, skipped: true, reason: 'No digest content' };
   }
 
-  const title = '5-hour rate update';
+  const title = 'Latest rate update';
   const body = buildDigestMessage(highlight);
 
   const users = await User.find({ isVerified: true })
@@ -149,8 +149,14 @@ async function runHourlyRatesDigest() {
     notification.deliveryStatus = result.success ? 'sent' : 'failed';
     await notification.save();
 
-    if (result.success) sentUsers += 1;
-    else failedUsers += 1;
+    if (result.success) {
+      sentUsers += 1;
+    } else {
+      failedUsers += 1;
+      console.warn(
+        `Rate digest push failed for user ${user._id}: ${result.reason || 'Unknown delivery error'}`
+      );
+    }
   }
 
   const anonymousSubscriptions = await AnonymousWebPushSubscription.find().lean();

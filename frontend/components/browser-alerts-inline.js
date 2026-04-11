@@ -58,7 +58,7 @@ export function BrowserAlertsInline() {
 
       setMessage(
         result.mode === "web-push"
-          ? "Background 5-hour updates are on for this browser."
+          ? "Background rate updates are on for this browser."
           : "Browser updates are on while this tab stays available."
       );
     } finally {
@@ -71,7 +71,7 @@ export function BrowserAlertsInline() {
   return (
     <div className="browser-alerts-inline">
       <div className="browser-alerts-inline-copy">
-        <strong>5-hour browser updates</strong>
+        <strong>Automatic browser updates</strong>
         <span>
           {enabled && permission === "granted"
             ? "This browser is set to receive rate digests."

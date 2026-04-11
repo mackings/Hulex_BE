@@ -16,7 +16,8 @@ import {
 import { getProviderMeta } from "@/lib/providers";
 
 const POLL_INTERVAL_MS = 30_000;
-const DIGEST_INTERVAL_MS = 5 * 60 * 60 * 1000;
+const DIGEST_INTERVAL_MS =
+  Number(process.env.NEXT_PUBLIC_RATE_DIGEST_INTERVAL_MINUTES || 5) * 60 * 1000;
 const RECENT_BOOTSTRAP_WINDOW_MS = 10 * 60 * 1000;
 const LOCAL_DIGEST_LAST_SHOWN_KEY = "hulex-browser-notifications-last-digest-at";
 const DIGEST_DEFAULT_QUERY = {
@@ -34,7 +35,7 @@ function getNotificationIcon(item) {
 
 function getNotificationTitle(item) {
   if (item?.kind === "rate_digest") {
-    return "Latest 5-hour rate update";
+    return "Latest rate update";
   }
 
   if (item?.provider?.name) {
@@ -94,7 +95,7 @@ function buildLocalDigestMessage(result) {
 
 function showLocalDigestNotification(result) {
   const bestProvider = result?.stats?.bestRate;
-  const title = "Latest 5-hour rate update";
+  const title = "Latest rate update";
   const message = buildLocalDigestMessage(result);
   const notification = new window.Notification(title, {
     body: message,

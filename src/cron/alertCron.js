@@ -8,7 +8,7 @@ let hourlyDigestTask;
 function startAlertCron() {
   const alertSchedule = process.env.ALERT_CRON || '0 9,13,20 * * *';
   const alertTimezone = process.env.ALERT_CRON_TZ || 'UTC';
-  const hourlySchedule = process.env.HOURLY_RATES_CRON || '0 */5 * * *';
+  const hourlySchedule = process.env.HOURLY_RATES_CRON || '*/5 * * * *';
   const hourlyTimezone = process.env.HOURLY_RATES_CRON_TZ || alertTimezone;
 
   alertTask = cron.schedule(
@@ -28,7 +28,7 @@ function startAlertCron() {
     hourlySchedule,
     async () => {
       try {
-        console.log('Running scheduled 5-hour rate digest notifications...');
+        console.log('Running scheduled rate digest notifications...');
         const result = await runHourlyRatesDigest();
         console.log(
           `Rate digest complete. createdUsers=${result.createdUsers || 0} sentUsers=${result.sentUsers} failedUsers=${result.failedUsers} skipped=${result.skipped}`
@@ -41,7 +41,7 @@ function startAlertCron() {
   );
 
   console.log(`Alert cron scheduled: ${alertSchedule} (${alertTimezone})`);
-  console.log(`5-hour rate digest cron scheduled: ${hourlySchedule} (${hourlyTimezone})`);
+  console.log(`Rate digest cron scheduled: ${hourlySchedule} (${hourlyTimezone})`);
 }
 
 function stopAlertCron() {

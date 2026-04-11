@@ -5,6 +5,16 @@ const {
   getCountryIso2ByCurrency
 } = require("./currencyHelper");
 
+const RATE_CACHE_TTL_MS = Math.max(
+  0,
+  Number(process.env.RATE_CACHE_TTL_SECONDS || 60) * 1000
+);
+const RATE_CACHE_STALE_MS = Math.max(
+  RATE_CACHE_TTL_MS,
+  Number(process.env.RATE_CACHE_STALE_SECONDS || 900) * 1000
+);
+const providerComparisonCache = new Map();
+
 function formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency) {
   const rate = parseFloat(data?.effectiveExchangeRate || data?.baseExchangeRate || 0);
   const fee = parseFloat(data?.effectiveFeeAmount || data?.baseFeeAmount || 0);
@@ -74,6 +84,42 @@ function dedupeProviders(providers) {
   return [...winners.values()];
 }
 
+function buildCacheKey({
+  sourceCurrency,
+  targetCurrency,
+  sendAmount,
+  fromCountry,
+  toCountry
+}) {
+  return JSON.stringify({
+    sourceCurrency: String(sourceCurrency || "").toUpperCase(),
+    targetCurrency: String(targetCurrency || "").toUpperCase(),
+    sendAmount: Number(sendAmount || 0),
+    fromCountry: String(fromCountry || "").toUpperCase(),
+    toCountry: String(toCountry || "").toUpperCase()
+  });
+}
+
+function getCachedProviders(cacheKey, maxAgeMs) {
+  const cached = providerComparisonCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+
+  if (Date.now() - cached.cachedAt > maxAgeMs) {
+    return null;
+  }
+
+  return cached.providers.map((provider) => ({ ...provider }));
+}
+
+function setCachedProviders(cacheKey, providers) {
+  providerComparisonCache.set(cacheKey, {
+    cachedAt: Date.now(),
+    providers: providers.map((provider) => ({ ...provider }))
+  });
+}
+
 async function fetchComparableProviders({
   sourceCurrency,
   targetCurrency,
@@ -81,56 +127,90 @@ async function fetchComparableProviders({
   fromCountry,
   toCountry
 }) {
-  const comparisonData = await getWiseComparison(sourceCurrency, targetCurrency, sendAmount);
-  const providers = formatProviderData(comparisonData.providers || []);
+  const cacheKey = buildCacheKey({
+    sourceCurrency,
+    targetCurrency,
+    sendAmount,
+    fromCountry,
+    toCountry
+  });
+  const freshCachedProviders = RATE_CACHE_TTL_MS
+    ? getCachedProviders(cacheKey, RATE_CACHE_TTL_MS)
+    : null;
 
-  const sendCountryIso2 = fromCountry
-    ? String(fromCountry).toUpperCase()
-    : getCountryIso2ByCurrency(sourceCurrency);
-  const receiveCountryIso2 = toCountry
-    ? String(toCountry).toUpperCase()
-    : getCountryIso2ByCurrency(targetCurrency);
-
-  if (sendCountryIso2 && receiveCountryIso2) {
-    const publicProviders = await Promise.all([
-      getSendWaveRates(
-        sourceCurrency,
-        targetCurrency,
-        sendCountryIso2,
-        receiveCountryIso2,
-        sendAmount
-      )
-        .then((data) =>
-          formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency)
-        )
-        .catch((error) => {
-          console.warn("SendWave fetch failed:", error.message);
-          return null;
-        }),
-      getTaptapSendRates(
-        sourceCurrency,
-        targetCurrency,
-        sendCountryIso2,
-        receiveCountryIso2,
-        sendAmount
-      )
-        .then((data) => formatTaptapSendProvider(data, sendAmount))
-        .catch((error) => {
-          console.warn("Taptap Send fetch failed:", error.message);
-          return null;
-        })
-    ]);
-
-    providers.push(...publicProviders.filter(Boolean));
-  } else {
-    console.warn(
-      `Public quote adapters skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`
-    );
+  if (freshCachedProviders) {
+    return freshCachedProviders;
   }
 
-  return dedupeProviders(providers).sort(
-    (left, right) => Number(right.receivedAmount || 0) - Number(left.receivedAmount || 0)
-  );
+  const buildProviders = async () => {
+    const comparisonData = await getWiseComparison(sourceCurrency, targetCurrency, sendAmount);
+    const providers = formatProviderData(comparisonData.providers || []);
+
+    const sendCountryIso2 = fromCountry
+      ? String(fromCountry).toUpperCase()
+      : getCountryIso2ByCurrency(sourceCurrency);
+    const receiveCountryIso2 = toCountry
+      ? String(toCountry).toUpperCase()
+      : getCountryIso2ByCurrency(targetCurrency);
+
+    if (sendCountryIso2 && receiveCountryIso2) {
+      const publicProviders = await Promise.all([
+        getSendWaveRates(
+          sourceCurrency,
+          targetCurrency,
+          sendCountryIso2,
+          receiveCountryIso2,
+          sendAmount
+        )
+          .then((data) =>
+            formatSendWaveProvider(data, sendAmount, sourceCurrency, targetCurrency)
+          )
+          .catch((error) => {
+            console.warn("SendWave fetch failed:", error.message);
+            return null;
+          }),
+        getTaptapSendRates(
+          sourceCurrency,
+          targetCurrency,
+          sendCountryIso2,
+          receiveCountryIso2,
+          sendAmount
+        )
+          .then((data) => formatTaptapSendProvider(data, sendAmount))
+          .catch((error) => {
+            console.warn("Taptap Send fetch failed:", error.message);
+            return null;
+          })
+      ]);
+
+      providers.push(...publicProviders.filter(Boolean));
+    } else {
+      console.warn(
+        `Public quote adapters skipped: missing country mapping for ${!sendCountryIso2 ? sourceCurrency : targetCurrency}`
+      );
+    }
+
+    return dedupeProviders(providers).sort(
+      (left, right) => Number(right.receivedAmount || 0) - Number(left.receivedAmount || 0)
+    );
+  };
+
+  try {
+    const providers = await buildProviders();
+    setCachedProviders(cacheKey, providers);
+    return providers.map((provider) => ({ ...provider }));
+  } catch (error) {
+    const staleCachedProviders = RATE_CACHE_STALE_MS
+      ? getCachedProviders(cacheKey, RATE_CACHE_STALE_MS)
+      : null;
+
+    if (staleCachedProviders?.length) {
+      console.warn("Serving stale provider comparison cache:", error.message);
+      return staleCachedProviders;
+    }
+
+    throw error;
+  }
 }
 
 module.exports = {

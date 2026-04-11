@@ -501,7 +501,7 @@ export function DashboardShell() {
 
             <section className="dashboard-card">
               <span className="section-kicker">Notifications</span>
-              <h2>Alert triggers and 5-hour rate updates</h2>
+              <h2>Alert triggers and automatic rate updates</h2>
               <div className="notification-list">
                 {notifications.length ? (
                   notifications.slice(0, 5).map((item) => (
