@@ -11,7 +11,8 @@ import {
   getBrowserNotificationPermission,
   getBrowserNotificationsEnabled,
   getLastSeenBrowserNotificationId,
-  setLastSeenBrowserNotificationId
+  setLastSeenBrowserNotificationId,
+  syncBrowserNotificationRegistration
 } from "@/lib/browser-notifications";
 import { getProviderMeta } from "@/lib/providers";
 
@@ -171,6 +172,40 @@ export function BrowserNotificationManager() {
       document.removeEventListener("visibilitychange", syncState);
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !isHydrated ||
+      !enabled ||
+      permission !== "granted" ||
+      !browserNotificationsSupported()
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const syncSubscription = async () => {
+      try {
+        const result = await syncBrowserNotificationRegistration();
+        if (cancelled || !result?.ok) {
+          return;
+        }
+
+        setMode(result.mode || "");
+      } catch {
+        // Fail quietly and retry on next visibility change or auth transition.
+      }
+    };
+
+    syncSubscription();
+    document.addEventListener("visibilitychange", syncSubscription);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", syncSubscription);
+    };
+  }, [enabled, isAuthenticated, isHydrated, permission]);
 
   useEffect(() => {
     if (

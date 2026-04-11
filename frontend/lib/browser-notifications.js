@@ -63,6 +63,86 @@ export function getBrowserNotificationPermission() {
   return window.Notification.permission;
 }
 
+function persistBrowserNotificationState({ enabled, mode }) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (enabled) {
+    window.localStorage.setItem(ENABLED_KEY, "true");
+  } else {
+    window.localStorage.removeItem(ENABLED_KEY);
+  }
+
+  if (mode) {
+    window.localStorage.setItem(MODE_KEY, mode);
+  } else {
+    window.localStorage.removeItem(MODE_KEY);
+  }
+}
+
+async function syncWebPushSubscription() {
+  const config = await getWebPushConfig();
+
+  if (!config?.supported || !config.publicKey) {
+    return { ok: false, mode: "poll", reason: "Web push is not configured on the backend." };
+  }
+
+  const registration = await navigator.serviceWorker.register(SERVICE_WORKER_PATH, {
+    scope: "/"
+  });
+  await navigator.serviceWorker.ready;
+
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(config.publicKey)
+    });
+  }
+
+  await registerWebPushSubscription(subscription.toJSON());
+  return {
+    ok: true,
+    mode: "web-push",
+    endpoint: subscription.endpoint || ""
+  };
+}
+
+export async function syncBrowserNotificationRegistration({ markEnabled = false } = {}) {
+  if (!browserNotificationsSupported()) {
+    return { ok: false, permission: "unsupported", mode: "", error: "Browser notifications are not supported here." };
+  }
+
+  const permission = getBrowserNotificationPermission();
+  if (permission !== "granted") {
+    persistBrowserNotificationState({ enabled: false, mode: "" });
+    emitBrowserNotificationsChange();
+    return { ok: false, permission, mode: "", error: "Browser notification permission is not granted." };
+  }
+
+  let mode = "poll";
+
+  if (webPushSupported()) {
+    try {
+      const result = await syncWebPushSubscription();
+      if (result.ok) {
+        mode = result.mode;
+      }
+    } catch (error) {
+      console.error("Web push sync failed:", error);
+    }
+  }
+
+  persistBrowserNotificationState({
+    enabled: markEnabled || getBrowserNotificationsEnabled(),
+    mode
+  });
+  emitBrowserNotificationsChange();
+
+  return { ok: true, permission, mode };
+}
+
 export async function enableBrowserNotifications() {
   if (!browserNotificationsSupported()) {
     return { ok: false, permission: "unsupported", error: "Browser notifications are not supported here." };
@@ -70,43 +150,12 @@ export async function enableBrowserNotifications() {
 
   const permission = await window.Notification.requestPermission();
   if (permission !== "granted") {
-    window.localStorage.removeItem(ENABLED_KEY);
+    persistBrowserNotificationState({ enabled: false, mode: "" });
     emitBrowserNotificationsChange();
     return { ok: false, permission, error: "Browser notification permission was not granted." };
   }
 
-  let mode = "poll";
-
-  if (webPushSupported()) {
-    try {
-      const config = await getWebPushConfig();
-
-      if (config?.supported && config.publicKey) {
-        const registration = await navigator.serviceWorker.register(SERVICE_WORKER_PATH, {
-          scope: "/"
-        });
-        await navigator.serviceWorker.ready;
-
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(config.publicKey)
-          });
-        }
-
-        await registerWebPushSubscription(subscription.toJSON());
-        mode = "web-push";
-      }
-    } catch (error) {
-      console.error("Web push registration failed:", error);
-    }
-  }
-
-  window.localStorage.setItem(ENABLED_KEY, "true");
-  window.localStorage.setItem(MODE_KEY, mode);
-  emitBrowserNotificationsChange();
-  return { ok: true, permission, mode };
+  return syncBrowserNotificationRegistration({ markEnabled: true });
 }
 
 export async function disableBrowserNotifications() {
@@ -128,8 +177,7 @@ export async function disableBrowserNotifications() {
     }
   }
 
-  window.localStorage.removeItem(ENABLED_KEY);
-  window.localStorage.removeItem(MODE_KEY);
+  persistBrowserNotificationState({ enabled: false, mode: "" });
   emitBrowserNotificationsChange();
 }
 
