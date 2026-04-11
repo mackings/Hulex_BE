@@ -92,6 +92,16 @@ app.options(/.*/, cors(corsOptions));
 app.use(express.json({ limit: '10kb', strict: true })); // Limit JSON body to 10kb
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
+// Health check endpoint must stay outside the global rate limiters so platform probes don't trip them.
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Rate limiting - Apply general rate limit to all requests
 app.use(speedLimiter);
 app.use(generalLimiter);
@@ -143,16 +153,6 @@ app.use("/", Authroutes);
 app.use("/", Trustpilotroutes);
 app.use("/", Historyroutes);
 app.use("/", Alrtroutes);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
 
 // 404 handler
 app.use((req, res) => {
