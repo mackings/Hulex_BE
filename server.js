@@ -52,10 +52,11 @@ app.use(helmetConfig);
 app.use(ipTracker);
 
 // Request logging (for monitoring and security auditing)
+const skipHealthCheckLogs = (req) => req.path === '/health';
 if (process.env.NODE_ENV === 'production') {
-  app.use(morgan('combined')); // Detailed logs in production
+  app.use(morgan('combined', { skip: skipHealthCheckLogs })); // Detailed logs in production
 } else {
-  app.use(morgan('dev')); // Colored logs in development
+  app.use(morgan('dev', { skip: skipHealthCheckLogs })); // Colored logs in development
 }
 
 // CORS configuration

@@ -8,7 +8,7 @@ let hourlyDigestTask;
 function startAlertCron() {
   const alertSchedule = process.env.ALERT_CRON || '0 9,13,20 * * *';
   const alertTimezone = process.env.ALERT_CRON_TZ || 'UTC';
-  const hourlySchedule = process.env.HOURLY_RATES_CRON || '*/5 * * * *';
+  const hourlySchedule = process.env.HOURLY_RATES_CRON || '0 */6 * * *';
   const hourlyTimezone = process.env.HOURLY_RATES_CRON_TZ || alertTimezone;
 
   alertTask = cron.schedule(

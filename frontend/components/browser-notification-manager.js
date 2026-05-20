@@ -18,7 +18,7 @@ import { getProviderMeta } from "@/lib/providers";
 
 const POLL_INTERVAL_MS = 30_000;
 const DIGEST_INTERVAL_MS =
-  Number(process.env.NEXT_PUBLIC_RATE_DIGEST_INTERVAL_MINUTES || 5) * 60 * 1000;
+  Number(process.env.NEXT_PUBLIC_RATE_DIGEST_INTERVAL_MINUTES || 360) * 60 * 1000;
 const RECENT_BOOTSTRAP_WINDOW_MS = 10 * 60 * 1000;
 const LOCAL_DIGEST_LAST_SHOWN_KEY = "hulex-browser-notifications-last-digest-at";
 const DIGEST_DEFAULT_QUERY = {

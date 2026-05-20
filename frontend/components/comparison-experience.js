@@ -302,7 +302,7 @@ export function ComparisonExperience({ hero = false, presets = [] }) {
     [result]
   );
   const topProviders = useMemo(() => allProviders.slice(0, 3), [allProviders]);
-  const heroProviders = useMemo(() => allProviders.slice(0, 2), [allProviders]);
+  const heroProviders = useMemo(() => allProviders.slice(0, 3), [allProviders]);
   const activePresetKey = useMemo(() => {
     const matchedPreset = presets.find(
       (preset) =>
@@ -612,6 +612,11 @@ export function ComparisonExperience({ hero = false, presets = [] }) {
                     {selectedToCountry?.flag || "•"} {selectedToCountry?.name}
                   </span>
                 </article>
+              </div>
+
+              <div className="provider-review-divider">
+                <span className="section-kicker">Provider reviews</span>
+                <p>Rates are ranked first. Open any provider below to check review context.</p>
               </div>
 
               <div className="top-results">

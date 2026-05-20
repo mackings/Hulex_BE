@@ -33,7 +33,7 @@ export function SiteHeader() {
             <div className="brand-mark">HX</div>
             <div className="brand-text">
               <strong>Hulex</strong>
-              <span>Every penny counts. Compare the cheapest transfer rates across providers.</span>
+              <span>Transfer rate checker</span>
             </div>
           </Link>
 
